@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实时调度总览 - VPP 虚拟电厂</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root {
+  --bg-deep: #0a0e27;
+  --bg-panel: rgba(6, 30, 60, 0.75);
+  --border-glow: rgba(0, 200, 255, 0.35);
+  --accent: #00d4ff;
+  --accent2: #00ff88;
+  --accent3: #ff6b6b;
+  --accent4: #ffaa00;
+  --text-primary: #e0f0ff;
+  --text-secondary: #7eb8da;
+  --glow-soft: 0 0 20px rgba(0, 180, 255, 0.15);
+  --glow-strong: 0 0 30px rgba(0, 200, 255, 0.4);
+  --panel-radius: 8px;
+  --header-h: 64px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Microsoft YaHei','PingFang SC',sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  user-select: none;
+}
+
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;}
+
+#app{
+  position:relative;z-index:1;
+  width:100%;height:100vh;
+  display:flex;flex-direction:column;
+  padding: 0 16px 12px;
+}
+
+/* ===== Header ===== */
+.header{
+  height: var(--header-h);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+  position:relative;
+}
+.header::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.header-left{display:flex;align-items:center;gap:14px;}
+.header-logo{
+  width:36px;height:36px;
+  background:linear-gradient(135deg,var(--accent4),var(--accent3));
+  border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:bold;color:#fff;
+  box-shadow: 0 0 18px rgba(255,170,0,0.5);
+}
+.header-title{
+  font-size:22px;font-weight:700;letter-spacing:3px;
+  background:linear-gradient(180deg,#e0f0ff,#7eb8da);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.header-center{display:flex;align-items:center;gap:24px;font-size:13px;color:var(--text-secondary);}
+.header-center .time{font-size:28px;font-weight:700;color:#e0f0ff;letter-spacing:2px;font-family:'Consolas','Monaco',monospace;}
+.header-center .date{font-size:13px;}
+.header-right{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--text-secondary);}
+.header-right .live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent3);box-shadow:0 0 8px var(--accent3);animation:pulse2 1.5s infinite;}
+@keyframes pulse2{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(1.8)}}
+
+/* ===== Body Layout ===== */
+.body{
+  flex:1;display:flex;gap:12px;
+  padding-top:8px;min-height:0;
+}
+.col-left,.col-right{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;}
+.col-center{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
+
+/* ===== Panel ===== */
+.panel{
+  background:var(--bg-panel);
+  border:1px solid var(--border-glow);
+  border-radius:var(--panel-radius);
+  padding:12px 14px;
+  position:relative;
+  backdrop-filter:blur(8px);
+  box-shadow:var(--glow-soft);
+  transition:box-shadow .4s;
+}
+.panel:hover{box-shadow:var(--glow-strong);}
+.panel::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.panel-title{
+  font-size:14px;font-weight:700;color:var(--text-primary);
+  margin-bottom:8px;padding-left:10px;
+  border-left:3px solid var(--accent);
+  display:flex;align-items:center;gap:6px;
+}
+.panel-title .icon{font-size:14px;}
+
+/* ===== Chart Containers ===== */
+.chart-box{width:100%;height:100%;min-height:180px;}
+
+/* ===== Resource Status Cards ===== */
+.res-card-row{display:flex;flex-direction:column;gap:4px;}
+.res-card{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 10px;
+  border-radius:4px;
+  background:rgba(0,180,255,0.04);
+  border:1px solid rgba(0,180,255,0.1);
+  transition:all .3s;
+  cursor:pointer;
+}
+.res-card:hover{background:rgba(0,180,255,0.12);border-color:var(--border-glow);}
+.res-card .res-icon{width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.res-card .res-info{flex:1;min-width:0;}
+.res-card .res-name{font-size:12px;font-weight:600;color:var(--text-primary);}
+.res-card .res-sub{font-size:10px;color:var(--text-secondary);margin-top:1px;}
+.res-card .res-data{text-align:right;flex-shrink:0;}
+.res-card .res-power{font-size:15px;font-weight:700;font-family:'Consolas','Monaco',monospace;}
+.res-card .res-unit{font-size:10px;color:var(--text-secondary);}
+.res-card .res-status{display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:4px;flex-shrink:0;}
+.res-card .res-status.online{background:var(--accent2);box-shadow:0 0 6px var(--accent2);}
+.res-card .res-status.warn{background:var(--accent4);box-shadow:0 0 6px var(--accent4);}
+.res-card .res-status.offline{background:#8899aa;}
+
+.res-icon.solar{background:rgba(255,170,0,0.2);color:#ffaa00;}
+.res-icon.wind{background:rgba(0,212,255,0.2);color:#00d4ff;}
+.res-icon.storage{background:rgba(0,255,136,0.2);color:#00ff88;}
+.res-icon.charger{background:rgba(180,130,255,0.2);color:#b482ff;}
+.res-icon.load{background:rgba(255,130,100,0.2);color:#ff8264;}
+
+/* ===== Flashing Alert List ===== */
+.alert-list{max-height:190px;overflow-y:auto;}
+.alert-list::-webkit-scrollbar{width:3px;}
+.alert-list::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+.alert-item{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;border-radius:4px;margin-bottom:4px;
+  background:rgba(255,80,80,0.06);
+  border-left:3px solid var(--accent3);
+  font-size:11px;transition:all .3s;
+  animation:slideIn 0.5s ease;
+}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+.alert-item.critical{
+  background:rgba(255,80,80,0.12);
+  border-left-color:var(--accent3);
+  animation:flashAlert 2s infinite;
+}
+@keyframes flashAlert{
+  0%,100%{background:rgba(255,80,80,0.08);box-shadow:0 0 4px rgba(255,80,80,0.1)}
+  50%{background:rgba(255,80,80,0.25);box-shadow:0 0 12px rgba(255,80,80,0.4)}
+}
+.alert-item.warn{border-left-color:var(--accent4);background:rgba(255,170,0,0.06);}
+.alert-item.info{border-left-color:var(--accent);background:rgba(0,200,255,0.04);}
+.alert-item .alert-icon{font-size:14px;flex-shrink:0;}
+.alert-item .alert-time{color:var(--text-secondary);font-size:10px;white-space:nowrap;}
+.alert-item .alert-badge{
+  font-size:9px;padding:1px 6px;border-radius:3px;
+  background:var(--accent3);color:#fff;
+  white-space:nowrap;
+}
+.alert-item .alert-badge.warn{background:var(--accent4);}
+
+/* ===== Center Tabs ===== */
+.center-tabs,.right-tabs{
+  display:flex;gap:0;
+  margin-bottom:0;
+}
+.center-tab,.right-tab{
+  padding:5px 16px;font-size:12px;color:var(--text-secondary);
+  border:1px solid transparent;cursor:pointer;
+  background:rgba(0,180,255,0.04);
+  transition:all .3s;
+}
+.center-tab:first-child,.right-tab:first-child{border-radius:4px 0 0 4px;}
+.center-tab:last-child,.right-tab:last-child{border-radius:0 4px 4px 0;}
+.center-tab.active,.right-tab.active{
+  color:var(--accent);border-color:var(--accent);
+  background:rgba(0,180,255,0.12);
+  box-shadow:0 0 10px rgba(0,200,255,0.2);
+}
+
+/* ===== Dispatch Panel ===== */
+.dispatch-form{display:flex;flex-direction:column;gap:8px;}
+.dispatch-row{display:flex;align-items:center;gap:8px;}
+.dispatch-row label{font-size:11px;color:var(--text-secondary);width:60px;flex-shrink:0;text-align:right;}
+.dispatch-row input,.dispatch-row select{
+  flex:1;padding:6px 10px;font-size:12px;
+  background:rgba(0,180,255,0.06);
+  border:1px solid rgba(0,200,255,0.2);
+  border-radius:4px;color:var(--text-primary);
+  outline:none;font-family:inherit;
+  transition:border-color .3s;
+}
+.dispatch-row input:focus,.dispatch-row select:focus{border-color:var(--accent);box-shadow:0 0 8px rgba(0,200,255,0.15);}
+.dispatch-row select{appearance:none;cursor:pointer;}
+.dispatch-row select option{background:var(--bg-deep);color:var(--text-primary);}
+.dispatch-actions{display:flex;gap:8px;margin-top:4px;}
+.btn{
+  flex:1;padding:8px 0;border-radius:4px;font-size:12px;
+  font-weight:600;cursor:pointer;border:none;
+  transition:all .3s;font-family:inherit;
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent),#0066ff);
+  color:#fff;box-shadow:0 0 12px rgba(0,200,255,0.3);
+}
+.btn-primary:hover{box-shadow:0 0 20px rgba(0,200,255,0.6);transform:translateY(-1px);}
+.btn-warn{
+  background:linear-gradient(135deg,var(--accent4),#ff6600);
+  color:#fff;box-shadow:0 0 10px rgba(255,170,0,0.25);
+}
+.btn-warn:hover{box-shadow:0 0 18px rgba(255,170,0,0.5);transform:translateY(-1px);}
+.btn-outline{
+  background:transparent;color:var(--accent);
+  border:1px solid var(--accent);
+}
+.btn-outline:hover{background:rgba(0,200,255,0.1);}
+
+/* ===== Marquee ===== */
+.marquee{
+  height:28px;overflow:hidden;flex-shrink:0;
+  display:flex;align-items:center;gap:8px;
+  margin-top:6px;font-size:11px;color:var(--text-secondary);
+}
+.marquee .tag{
+  background:rgba(255,170,0,0.2);color:var(--accent4);
+  padding:2px 8px;border-radius:3px;font-size:10px;white-space:nowrap;
+}
+.marquee-scroll{
+  flex:1;overflow:hidden;position:relative;height:24px;
+}
+.marquee-scroll span{
+  position:absolute;white-space:nowrap;
+  animation:scroll 25s linear infinite;
+}
+@keyframes scroll{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+
+<div id="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">⚡</div>
+      <div class="header-title">实时调度·运行总览</div>
+    </div>
+    <div class="header-center">
+      <div class="date" id="headerDate">--</div>
+      <div class="time" id="headerTime">--:--:--</div>
+      <span>|</span>
+      <span>🌤 晴 23°C · 实时辐照 876 W/m²</span>
+    </div>
+    <div class="header-right">
+      <div class="live-dot"></div><span style="color:var(--accent3);">实时监控中</span>
+      <span>|</span>
+      <span>👤 调度员 · 张三</span>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <!-- Left Column -->
+    <div class="col-left">
+      <!-- Resource Status Cards -->
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title"><span class="icon">📡</span>资源实时状态 <span style="font-size:10px;color:var(--accent2);">(4类 · 23个场站)</span></div>
+        <div class="res-card-row" id="resCards">
+          <!-- dynamically filled -->
+        </div>
+      </div>
+
+      <!-- Dual Y-axis Power Curve -->
+      <div class="panel" style="flex:1;">
+        <div class="panel-title"><span class="icon">📈</span>发电功率 & 环境参数</div>
+        <div id="chartPower" class="chart-box"></div>
+      </div>
+
+      <!-- Alert List -->
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title"><span class="icon">🚨</span>实时告警 <span style="font-size:10px;color:var(--accent3);">(闪烁=未处置)</span></div>
+        <div class="alert-list" id="alertList">
+          <!-- dynamically filled -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Column -->
+    <div class="col-center">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="center-tabs">
+          <div class="center-tab active" data-tab="predict">📊 预测 vs 实际</div>
+          <div class="center-tab" data-tab="usage">📋 设备使用率</div>
+        </div>
+      </div>
+      <div class="panel" style="flex:1;" id="centerPanel">
+        <div id="chartCenter" class="chart-box"></div>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-right">
+      <!-- Charging Efficiency Radar -->
+      <div class="panel" style="flex:1;">
+        <div class="panel-title"><span class="icon">🔌</span>充电站效率分析</div>
+        <div id="chartRadar" class="chart-box"></div>
+      </div>
+
+      <!-- Dispatch Control Panel -->
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title"><span class="icon">🎛️</span>调度指令下发</div>
+        <div style="display:flex;gap:0;margin-bottom:8px;">
+          <div class="right-tab active" data-type="solar">☀️光伏</div>
+          <div class="right-tab" data-type="storage">🔋储能</div>
+          <div class="right-tab" data-type="charger">🔌充电桩</div>
+          <div class="right-tab" data-type="load">🏭负荷</div>
+        </div>
+        <div id="dispatchSummary" style="font-size:11px;">
+          <!-- dynamically filled - compact status per type -->
+        </div>
+        <div style="text-align:center;margin-top:8px;">
+          <button class="btn btn-primary" style="flex:none;padding:8px 20px;font-size:11px;width:100%;" onclick="openDispatchDetail()">📋 进入详细调度</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Marquee -->
+  <div class="marquee">
+    <span class="tag">⚡ 调度快报</span>
+    <div class="marquee-scroll">
+      <span id="marqueeText">[14:32:10] 光伏 #PS-028 出力超计划 105%，自动上调目标至 48.5MW | [14:30:05] 储能 #ES-012 充放电切换完成 SOC 78% | [14:28:33] 充电桩 #CP-012 有序充电策略生效，负荷优化中 | [14:25:00] 可控负荷 #CL-005 响应削峰指令，降载 12MW | [14:20:15] 储能 #ES-015 电池温度恢复正常，告警解除</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== Particle Background ==========
+const canvas=document.getElementById('bgCanvas');
+const ctx=canvas.getContext('2d');
+let particles=[];
+function resizeCanvas(){
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize',resizeCanvas);
+
+class Particle{
+  constructor(){this.reset();}
+  reset(){
+    this.x=Math.random()*canvas.width;
+    this.y=Math.random()*canvas.height;
+    this.r=Math.random()*1.5+0.5;
+    this.vx=(Math.random()-0.5)*0.4;
+    this.vy=(Math.random()-0.5)*0.4;
+    this.alpha=Math.random()*0.5+0.2;
+  }
+  update(){
+    this.x+=this.vx;this.y+=this.vy;
+    if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height)this.reset();
+  }
+  draw(){
+    ctx.beginPath();
+    ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(0,200,255,${this.alpha})`;
+    ctx.fill();
+  }
+}
+for(let i=0;i<80;i++)particles.push(new Particle());
+
+function drawGrid(){
+  ctx.strokeStyle='rgba(0,180,255,0.04)';
+  ctx.lineWidth=0.5;
+  const gap=60;
+  for(let x=gap;x<canvas.width;x+=gap){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=gap;y<canvas.height;y+=gap){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+}
+function animateBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawGrid();
+  particles.forEach(p=>{p.update();p.draw();});
+  for(let i=0;i<particles.length;i++){
+    for(let j=i+1;j<particles.length;j++){
+      const dx=particles[i].x-particles[j].x;
+      const dy=particles[i].y-particles[j].y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<100){
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x,particles[i].y);
+        ctx.lineTo(particles[j].x,particles[j].y);
+        ctx.strokeStyle=`rgba(0,200,255,${0.06*(1-dist/100)})`;
+        ctx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// ========== Clock ==========
+function updateClock(){
+  const now=new Date();
+  document.getElementById('headerTime').textContent=now.toLocaleTimeString('zh-CN',{hour12:false});
+  document.getElementById('headerDate').textContent=now.toLocaleDateString('zh-CN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+updateClock();setInterval(updateClock,1000);
+
+// ========== Resource Status Cards ==========
+const resData=[
+  {id:'solar',icon:'☀️',name:'光伏集群',sub:'6个场站 · 在线6',power:445,unit:'MW',rate:'+12%',status:'online',color:'#ffaa00',bg:'solar'},
+  {id:'storage',icon:'🔋',name:'储能集群',sub:'8个站点 · 在线7',power:-42,unit:'MW',rate:'充电中',status:'online',color:'#00ff88',bg:'storage'},
+  {id:'charger',icon:'🔌',name:'充电桩网络',sub:'6个站点 · 在线5',power:18,unit:'MW',rate:'+8%',status:'warn',color:'#b482ff',bg:'charger'},
+  {id:'load',icon:'🏭',name:'可控负荷',sub:'3个节点 · 在线3',power:126,unit:'MW',rate:'已调节',status:'online',color:'#ff8264',bg:'load'},
+];
+function renderResCards(){
+  const container=document.getElementById('resCards');
+  container.innerHTML=resData.map(r=>`
+    <div class="res-card" data-id="${r.id}">
+      <div class="res-icon ${r.bg}">${r.icon}</div>
+      <div class="res-info">
+        <div class="res-name">${r.name}</div>
+        <div class="res-sub">${r.sub}</div>
+      </div>
+      <div class="res-data">
+        <div class="res-power" style="color:${r.color}">${r.power>0?'+':''}${r.power}</div>
+        <div class="res-unit">${r.unit} <span style="font-size:9px;color:var(--text-secondary);">${r.rate}</span></div>
+      </div>
+      <span class="res-status ${r.status}"></span>
+    </div>
+  `).join('');
+}
+renderResCards();
+
+// Resource card click -> switch dispatch summary tab
+document.getElementById('resCards').addEventListener('click',e=>{
+  const card=e.target.closest('.res-card');
+  if(!card)return;
+  const type=card.dataset.id;
+  document.querySelectorAll('.right-tab').forEach(t=>t.classList.remove('active'));
+  const targetTab=document.querySelector(`.right-tab[data-type="${type}"]`);
+  if(targetTab){targetTab.classList.add('active');renderDispatchSummary(type);}
+});
+
+// ========== Dual Y-axis Power Chart (Left) ==========
+const chartPower=echarts.init(document.getElementById('chartPower'));
+const hours=['00:00','02:00','04:00','06:00','08:00','10:00','12:00','14:00','16:00','18:00','20:00','22:00'];
+const powerOption={
+  tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff',textStyle:{color:'#e0f0ff'}},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10},itemWidth:12,itemHeight:8},
+  grid:{left:48,right:52,top:16,bottom:30},
+  xAxis:{type:'category',data:hours,axisLabel:{color:'#7eb8da',fontSize:10,interval:1},axisLine:{lineStyle:{color:'rgba(0,180,255,0.3)'}}},
+  yAxis:[
+    {type:'value',name:'MW',splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da',fontSize:10}},
+    {type:'value',name:'W/m²',splitLine:{show:false},axisLabel:{color:'#7eb8da',fontSize:10}}
+  ],
+  series:[
+    {name:'光伏出力',type:'line',smooth:true,yAxisIndex:0,data:[0,0,0,2,48,156,320,445,380,210,45,0],lineStyle:{color:'#ffaa00',width:2},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(255,170,0,0.25)'},{offset:1,color:'rgba(255,170,0,0.02)'}]}},symbol:'none'},
+    {name:'储能净出力',type:'line',smooth:true,yAxisIndex:0,data:[20,15,10,5,0,-30,-50,-60,-40,-10,15,20],lineStyle:{color:'#00ff88',width:2,type:'dashed'},symbol:'none'},
+    {name:'辐照度',type:'line',smooth:true,yAxisIndex:1,data:[0,0,0,45,280,560,780,876,650,310,60,0],lineStyle:{color:'rgba(255,170,0,0.5)',width:1.5,type:'dotted'},symbol:'none'}
+  ]
+};
+chartPower.setOption(powerOption);
+
+// ========== Alert List ==========
+const alerts=[
+  {time:'14:35:22',level:'critical',icon:'🔴',text:'储能站 #ES-015 电池组 #3 温度异常升至 48°C',badge:'未处置'},
+  {time:'14:32:10',level:'critical',icon:'🔴',text:'光伏 #PS-028 输出功率骤降至 28MW (目标 48.5MW)',badge:'处置中'},
+  {time:'14:28:05',level:'warn',icon:'🟡',text:'充电桩 #CP-008 转换效率降至 88%，低于 92% 阈值',badge:'观察'},
+  {time:'14:15:33',level:'critical',icon:'🔴',text:'可控负荷 #CL-003 响应超时 30s，未执行降载指令',badge:'未处置'},
+  {time:'14:08:40',level:'warn',icon:'🟡',text:'充电桩 #CP-005 功率因数降至 0.85，建议补偿调节',badge:'观察'},
+  {time:'13:55:18',level:'info',icon:'🔵',text:'储能 #ES-018 完成计划充放电循环，SOC恢复至 85%',badge:''},
+];
+const alertList=document.getElementById('alertList');
+alerts.forEach(a=>{
+  const div=document.createElement('div');
+  div.className=`alert-item ${a.level}`;
+  div.innerHTML=`<span class="alert-icon">${a.icon}</span><span style="flex:1">${a.text}</span><span class="alert-time">${a.time}</span>`+(a.badge?`<span class="alert-badge ${a.level==='warn'?'warn':''}">${a.badge}</span>`:'');
+  alertList.appendChild(div);
+});
+
+// ========== Center Chart (Predict vs Actual) ==========
+const chartCenter=echarts.init(document.getElementById('chartCenter'));
+const predictHours=['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+const predictOption={
+  tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff',textStyle:{color:'#e0f0ff'}},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10},itemWidth:14,itemHeight:8},
+  grid:{left:50,right:25,top:20,bottom:32},
+  xAxis:{type:'category',data:predictHours,axisLabel:{color:'#7eb8da',fontSize:10},axisLine:{lineStyle:{color:'rgba(0,180,255,0.3)'}}},
+  yAxis:{type:'value',name:'MW',splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da',fontSize:10}},
+  series:[
+    {name:'实际总出力',type:'line',smooth:true,data:[340,380,520,720,880,960,1000,980,950,920,880,800,720,650,580],lineStyle:{color:'#00d4ff',width:3,shadowBlur:10,shadowColor:'rgba(0,212,255,0.6)'},symbol:'circle',symbolSize:8,itemStyle:{color:'#00d4ff',borderColor:'#0a0e27',borderWidth:2}},
+    {name:'日前预测',type:'line',smooth:true,data:[360,400,550,700,850,930,980,960,940,910,860,780,700,620,560],lineStyle:{color:'rgba(255,170,0,0.7)',width:2,type:'dashed',dashOffset:4},symbol:'diamond',symbolSize:8,itemStyle:{color:'#ffaa00',borderColor:'#0a0e27',borderWidth:2}},
+    {name:'偏差值',type:'bar',data:predictHours.map((_,i)=>{const a=[340,380,520,720,880,960,1000,980,950,920,880,800,720,650,580][i];const p=[360,400,550,700,850,930,980,960,940,910,860,780,700,620,560][i];return Number((a-p).toFixed(1));}),barWidth:10,itemStyle:{color:params=>params.value>=0?'rgba(0,255,136,0.4)':'rgba(255,107,107,0.4)',borderRadius:[3,3,0,0]}}
+  ]
+};
+chartCenter.setOption(predictOption);
+
+// ========== Equipment Usage (Center Tab 2) ==========
+const usageOption={
+  tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff',textStyle:{color:'#e0f0ff'}},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10}},
+  grid:{left:50,right:25,top:20,bottom:32},
+  xAxis:{type:'category',data:['光伏','储能','充电桩','可控负荷'],axisLabel:{color:'#7eb8da',fontSize:10}},
+  yAxis:{type:'value',name:'%',max:100,splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da',fontSize:10}},
+  series:[
+    {name:'高负荷 (>80%)',type:'bar',stack:'total',barWidth:28,data:[45,22,30,55],itemStyle:{color:'#00ff88',borderRadius:[0,0,0,0]},label:{show:true,position:'inside',color:'#0a0e27',fontSize:10,fontWeight:'bold'}},
+    {name:'中负荷 (40-80%)',type:'bar',stack:'total',data:[30,28,25,28],itemStyle:{color:'#ffaa00'}},
+    {name:'低负荷 (<40%)',type:'bar',stack:'total',data:[25,50,45,17],itemStyle:{color:'rgba(136,153,170,0.6)',borderRadius:[4,4,0,0]}}
+  ]
+};
+
+// Tab switching (Center)
+document.querySelectorAll('.center-tab').forEach(tab=>{
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.center-tab').forEach(t=>t.classList.remove('active'));
+    this.classList.add('active');
+    if(this.dataset.tab==='predict')chartCenter.setOption(predictOption,true);
+    else chartCenter.setOption(usageOption,true);
+  });
+});
+
+// ========== Radar Chart (Right) ==========
+const chartRadar=echarts.init(document.getElementById('chartRadar'));
+const radarOption={
+  tooltip:{},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10}},
+  radar:{
+    center:['50%','48%'],
+    radius:'60%',
+    indicator:[
+      {name:'转换效率',max:100},
+      {name:'在线率',max:100},
+      {name:'利用率',max:100},
+      {name:'响应速度',max:100},
+      {name:'电能质量',max:100}
+    ],
+    axisName:{color:'#7eb8da',fontSize:10},
+    splitArea:{areaStyle:{color:['rgba(0,180,255,0.02)','rgba(0,180,255,0.02)']}},
+    axisLine:{lineStyle:{color:'rgba(0,200,255,0.2)'}},
+    splitLine:{lineStyle:{color:'rgba(0,200,255,0.15)'}}
+  },
+  series:[{
+    type:'radar',
+    data:[
+      {value:[94,98,82,88,96],name:'#CP-001',areaStyle:{color:'rgba(0,212,255,0.15)'},lineStyle:{color:'#00d4ff',width:2},itemStyle:{color:'#00d4ff'},symbol:'circle',symbolSize:5},
+      {value:[88,95,76,92,90],name:'#CP-002',areaStyle:{color:'rgba(255,170,0,0.12)'},lineStyle:{color:'#ffaa00',width:2},itemStyle:{color:'#ffaa00'},symbol:'circle',symbolSize:5},
+      {value:[78,90,68,82,85],name:'#CP-003',areaStyle:{color:'rgba(0,255,136,0.1)'},lineStyle:{color:'#00ff88',width:2},itemStyle:{color:'#00ff88'},symbol:'circle',symbolSize:5}
+    ]
+  }]
+};
+chartRadar.setOption(radarOption);
+
+// ========== Dispatch Summary (compact, per resource type) ==========
+const dispatchSummaries={
+  solar:`
+    <div style="margin-bottom:6px;font-size:10px;color:#ffaa00;">☀️ 光伏集群 · 辐照度 876 W/m²</div>
+    <div style="display:flex;gap:6px;margin-bottom:4px;">
+      <div style="flex:1;background:rgba(255,170,0,0.06);padding:6px;border-radius:4px;text-align:center;">
+        <div style="font-size:10px;color:var(--text-secondary);">辐照偏差</div>
+        <div style="font-size:16px;font-weight:700;color:var(--accent2);">+3.8%</div>
+        <div style="font-size:8px;color:var(--text-secondary);">10%阈值内 ✓</div>
+      </div>
+      <div style="flex:1;background:rgba(0,180,255,0.04);padding:6px;border-radius:4px;text-align:center;">
+        <div style="font-size:10px;color:var(--text-secondary);">限发状态</div>
+        <div style="font-size:14px;font-weight:700;color:var(--accent2);">正常</div>
+        <div style="font-size:8px;color:var(--text-secondary);">今日1次限发</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text-secondary);">可切优先级: 2个普通(高) · 1个农光互补(低)</div>
+  `,
+  storage:`
+    <div style="margin-bottom:6px;font-size:10px;color:#00ff88;">🔋 储能集群 · 充放电循环 3次/日</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div style="width:52px;height:52px;border-radius:50%;background:conic-gradient(#00ff88 0deg, #00ff88 280deg, rgba(0,40,80,0.6) 280deg, rgba(0,40,80,0.6) 360deg);display:flex;align-items:center;justify-content:center;position:relative;">
+        <div style="position:absolute;width:40px;height:40px;border-radius:50%;background:var(--bg-panel);"></div>
+        <span style="position:relative;z-index:1;font-size:16px;font-weight:700;color:#00ff88;">78%</span>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text-secondary);">高限 <span style="color:var(--accent3);">90%</span> · 低限 <span style="color:var(--accent4);">10%</span></div>
+        <div style="font-size:10px;color:var(--accent2);">🟢 电池 32°C · PCS 正常</div>
+        <div style="font-size:10px;color:var(--text-secondary);">充放电上限: 80MW</div>
+      </div>
+    </div>
+  `,
+  charger:`
+    <div style="margin-bottom:6px;font-size:10px;color:#b482ff;">🔌 充电桩网络 · 在线率 95%</div>
+    <div style="display:flex;gap:6px;margin-bottom:4px;">
+      <div style="flex:1;background:rgba(180,130,255,0.06);padding:6px;border-radius:4px;text-align:center;">
+        <div style="font-size:16px;font-weight:700;color:#b482ff;">100kW</div>
+        <div style="font-size:9px;color:var(--text-secondary);">桩群总负荷</div>
+      </div>
+      <div style="flex:1;background:rgba(0,180,255,0.04);padding:6px;border-radius:4px;text-align:center;">
+        <div style="font-size:16px;font-weight:700;color:var(--accent);">28辆</div>
+        <div style="font-size:9px;color:var(--text-secondary);">在充车辆 · 42min</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text-secondary);">可降余量: 100kW→30kW | 🚌公交🔒/🧹环卫🔒 已锁定</div>
+  `,
+  load:`
+    <div style="margin-bottom:6px;font-size:10px;color:#ff8264;">🏭 可控负荷 · 当前 126MW</div>
+    <div style="display:flex;gap:6px;margin-bottom:4px;">
+      <div style="flex:1;background:rgba(255,130,100,0.06);padding:6px;border-radius:4px;text-align:center;">
+        <div style="font-size:11px;color:var(--text-secondary);">合约上限</div>
+        <div style="font-size:16px;font-weight:700;color:var(--accent3);">30%</div>
+      </div>
+      <div style="flex:1;background:rgba(255,107,107,0.06);padding:6px;border-radius:4px;text-align:center;">
+        <div style="font-size:11px;color:var(--text-secondary);">已中断</div>
+        <div style="font-size:16px;font-weight:700;color:var(--accent4);">8min</div>
+      </div>
+      <div style="flex:1;background:rgba(0,255,136,0.04);padding:6px;border-radius:4px;text-align:center;">
+        <div style="font-size:11px;color:var(--text-secondary);">最长</div>
+        <div style="font-size:16px;font-weight:700;color:var(--accent2);">60min</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text-secondary);">调节档位: 升2℃ · 补偿 ¥1.5/kWh</div>
+  `
+};
+
+function renderDispatchSummary(type){
+  const d=dispatchSummaries[type]||dispatchSummaries.solar;
+  document.getElementById('dispatchSummary').innerHTML=d;
+}
+
+function openDispatchDetail(){
+  const active=document.querySelector('.right-tab.active');
+  const type=active?active.dataset.type:'solar';
+  window.location.href='dispatch-detail.html?type='+type;
+}
+renderDispatchSummary('solar');
+
+// Dispatch tab switching
+document.querySelectorAll('.right-tab').forEach(tab=>{
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.right-tab').forEach(t=>t.classList.remove('active'));
+    this.classList.add('active');
+    renderDispatchSummary(this.dataset.type);
+  });
+});
+
+// ========== Simulate real-time updates ==========
+setInterval(()=>{
+  // Update resource cards
+  resData[0].power=430+Math.floor(Math.random()*40);
+  resData[1].power=-55+Math.floor(Math.random()*30);
+  resData[2].power=15+Math.floor(Math.random()*8);
+  resData[3].power=120+Math.floor(Math.random()*15);
+  renderResCards();
+},3000);
+
+// ========== Responsive Resize ==========
+window.addEventListener('resize',()=>{
+  chartPower.resize();
+  chartCenter.resize();
+  chartRadar.resize();
+});
+</script>
+</body>
+</html>

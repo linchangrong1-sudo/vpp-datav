@@ -1,0 +1,33 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]: ⚡
+    - generic [ref=e5]: 虚拟电厂运营管理平台
+    - generic [ref=e6]: VPP Operations Management
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9] [cursor=pointer]: 🔑 账号登录
+      - generic [ref=e10] [cursor=pointer]: 📝 账号注册
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: 用户名 / 手机号
+        - generic [ref=e14]:
+          - generic [ref=e15]: 👤
+          - textbox "输入用户名或手机号" [ref=e16]
+      - generic [ref=e17]:
+        - generic [ref=e18]: 密码
+        - generic [ref=e19]:
+          - generic [ref=e20]: 🔒
+          - textbox "请输入密码" [ref=e21]
+          - generic [ref=e22] [cursor=pointer]: 👁️
+      - generic [ref=e23]:
+        - generic [ref=e24]: 验证码
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - generic [ref=e27]: 🛡️
+            - textbox "4位验证码" [ref=e28]
+          - generic [ref=e30] [cursor=pointer]: BJE9
+        - generic [ref=e31]: 点击图片刷新 · 60秒有效 · 不区分大小写
+      - button "⚡ 登 录" [ref=e32] [cursor=pointer]
+      - paragraph
+  - link "← 返回平台首页" [ref=e33] [cursor=pointer]:
+    - /url: index.html

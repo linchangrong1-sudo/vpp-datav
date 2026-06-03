@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 — VPP 虚拟电厂运营管理平台</title>
+<style>
+:root {
+  --bg-deep: #0a0e27; --bg-panel: rgba(6, 30, 60, 0.85);
+  --border-glow: rgba(0, 200, 255, 0.35); --accent: #00d4ff;
+  --accent2: #00ff88; --accent3: #ff6b6b; --accent4: #ffaa00;
+  --text-primary: #e0f0ff; --text-secondary: #7eb8da;
+  --glow-soft: 0 0 20px rgba(0, 180, 255, 0.15);
+  --glow-strong: 0 0 30px rgba(0, 200, 255, 0.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background: var(--bg-deep); color: var(--text-primary);
+  font-family: 'Microsoft YaHei','PingFang SC',sans-serif;
+  min-height: 100vh;display:flex;align-items:center;justify-content:center;
+}
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+
+.main-wrapper{position:relative;z-index:1;width:100%;max-width:440px;padding:20px;}
+
+/* Brand */
+.brand{text-align:center;margin-bottom:28px;}
+.brand-logo{
+  width:56px;height:56px;background:linear-gradient(135deg,var(--accent4),var(--accent3));
+  border-radius:14px;display:inline-flex;align-items:center;justify-content:center;
+  font-size:26px;color:#fff;box-shadow:0 0 24px rgba(255,170,0,0.5);margin-bottom:12px;
+}
+.brand-name{font-size:20px;font-weight:700;letter-spacing:2px;}
+.brand-sub{font-size:11px;color:var(--text-secondary);margin-top:4px;}
+
+/* Card */
+.card{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:14px;padding:32px 28px;position:relative;
+  backdrop-filter:blur(12px);box-shadow:var(--glow-soft);
+}
+.card::before{
+  content:'';position:absolute;top:-1px;left:12%;right:12%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+
+/* Tabs: Login / Register */
+.tabs{display:flex;gap:0;margin-bottom:24px;}
+.tab-btn{
+  flex:1;padding:10px;border:1px solid rgba(0,200,255,0.2);cursor:pointer;
+  font-size:13px;font-weight:600;text-align:center;transition:all .3s;
+  background:rgba(0,20,50,0.4);color:var(--text-secondary);
+  font-family:inherit;
+}
+.tab-btn:first-child{border-radius:8px 0 0 8px;}
+.tab-btn:last-child{border-radius:0 8px 8px 0;}
+.tab-btn.active{
+  background:rgba(0,200,255,0.15);color:var(--accent);
+  border-color:var(--accent);box-shadow:0 0 12px rgba(0,200,255,0.15);
+}
+
+/* Form fields */
+.form-group{margin-bottom:16px;}
+.form-group label{
+  display:block;font-size:11px;color:var(--text-secondary);margin-bottom:6px;
+}
+.input-wrap{
+  position:relative;display:flex;align-items:center;
+}
+.input-wrap .input-icon{
+  position:absolute;left:12px;font-size:14px;color:rgba(126,184,218,0.5);z-index:1;
+}
+.input-wrap input{
+  width:100%;padding:11px 14px 11px 36px;
+  background:rgba(0,20,50,0.5);border:1px solid rgba(0,200,255,0.2);
+  border-radius:8px;color:var(--text-primary);font-size:13px;
+  outline:none;font-family:inherit;
+  transition:border-color .3s,box-shadow .3s;
+}
+.input-wrap input:focus{
+  border-color:var(--accent);box-shadow:0 0 12px rgba(0,200,255,0.12);
+}
+.input-wrap input::placeholder{color:rgba(126,184,218,0.35);}
+
+/* Slash separator for username/phone field */
+.input-wrap .slash-sep{
+  position:absolute;left:30px;top:50%;transform:translateY(-50%);
+  font-size:11px;color:rgba(126,184,218,0.5);pointer-events:none;z-index:2;
+}
+
+/* Eye toggle */
+.eye-toggle{
+  position:absolute;right:12px;font-size:14px;color:rgba(126,184,218,0.4);
+  cursor:pointer;z-index:1;transition:color .3s;
+}
+.eye-toggle:hover{color:var(--accent);}
+
+/* Captcha row */
+.captcha-row{display:flex;gap:10px;}
+.captcha-row .input-wrap{flex:1;}
+.captcha-box{
+  width:110px;height:42px;background:rgba(0,20,50,0.5);
+  border:1px solid rgba(0,200,255,0.2);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:border-color .3s;user-select:none;
+}
+.captcha-box:hover{border-color:var(--accent);}
+.captcha-text{
+  font-family:'Courier New',monospace;font-weight:bold;
+  font-style:italic;font-size:18px;letter-spacing:5px;
+  color:var(--accent);
+}
+
+/* Error box */
+.error-box{
+  display:none;padding:10px 14px;border-radius:6px;font-size:12px;
+  margin-bottom:14px;align-items:center;gap:8px;
+}
+.error-box.show{display:flex;}
+.error-box.red{background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.3);color:var(--accent3);}
+.error-box.green{background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.2);color:var(--accent2);}
+
+/* Buttons */
+.btn{
+  width:100%;padding:12px;border-radius:8px;font-size:14px;
+  font-weight:700;cursor:pointer;border:none;font-family:inherit;
+  transition:all .3s;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent),#0066ff);
+  color:#fff;box-shadow:0 0 16px rgba(0,200,255,0.3);
+}
+.btn-primary:hover{box-shadow:0 0 24px rgba(0,200,255,0.5);transform:translateY(-1px);}
+.btn-primary:disabled{opacity:0.45;cursor:not-allowed;box-shadow:none;transform:none;}
+
+.btn-secondary{
+  background:transparent;color:var(--accent);border:1px solid var(--accent);
+  margin-top:8px;
+}
+.btn-secondary:hover{background:rgba(0,200,255,0.08);}
+
+/* Hint text */
+.hint{text-align:center;font-size:11px;color:var(--text-secondary);margin-top:10px;}
+.hint.warn{color:var(--accent3);}
+
+/* Locked card */
+.locked-icon{
+  width:64px;height:64px;border-radius:50%;background:rgba(255,107,107,0.1);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 14px;
+  font-size:28px;
+}
+.locked-title{text-align:center;font-size:16px;font-weight:700;margin-bottom:6px;}
+.locked-desc{text-align:center;font-size:12px;color:var(--text-secondary);margin-bottom:4px;}
+
+/* Shake */
+.shake{animation:shake 0.5s ease;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+
+/* Fade in */
+.fade-in{animation:fadeIn 0.4s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Success card */
+.success-card{text-align:center;padding:20px 0;}
+.success-icon{
+  width:60px;height:60px;border-radius:50%;background:rgba(0,255,136,0.1);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 14px;
+  font-size:28px;color:var(--accent2);
+}
+.success-role{font-size:12px;color:var(--text-secondary);margin:8px 0 4px;}
+
+/* Progress bar */
+.progress-bar{
+  width:100%;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:12px;
+  overflow:hidden;
+}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .15s;width:0%;}
+
+/* Back link */
+.back-link{
+  display:block;text-align:center;margin-top:18px;font-size:11px;
+  color:var(--text-secondary);text-decoration:none;transition:color .3s;
+}
+.back-link:hover{color:var(--accent);}
+
+/* Register specific */
+.or-divider{
+  display:flex;align-items:center;gap:10px;margin:12px 0;font-size:10px;color:var(--text-secondary);
+}
+.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:rgba(0,200,255,0.12);}
+
+.agree-row{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-secondary);margin-bottom:14px;}
+.agree-row input[type=checkbox]{accent-color:var(--accent);}
+.agree-row a{color:var(--accent);text-decoration:none;}
+.agree-row a:hover{text-decoration:underline;}
+
+.reg-success{display:none;text-align:center;padding:30px 0;}
+.reg-success.show{display:block;}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+
+<div class="main-wrapper">
+  <!-- Brand -->
+  <div class="brand">
+    <div class="brand-logo">⚡</div>
+    <div class="brand-name">虚拟电厂运营管理平台</div>
+    <div class="brand-sub">VPP Operations Management</div>
+  </div>
+
+  <!-- Card -->
+  <div class="card fade-in" id="mainCard">
+
+    <!-- Tabs -->
+    <div class="tabs" id="tabs">
+      <div class="tab-btn active" data-tab="login" id="tabLogin">🔑 账号登录</div>
+      <div class="tab-btn" data-tab="register" id="tabRegister">📝 账号注册</div>
+    </div>
+
+    <!-- ======== LOGIN FORM ======== -->
+    <div id="loginForm">
+      <div class="form-group">
+        <label>用户名 / 手机号</label>
+        <div class="input-wrap">
+          <span class="input-icon">👤</span>
+          <input id="loginAccount" type="text" placeholder="输入用户名或手机号" autocomplete="username" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>密码</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input id="loginPassword" type="password" placeholder="请输入密码" autocomplete="current-password" />
+          <span class="eye-toggle" id="eyeLogin" onclick="togglePwd('loginPassword','eyeLogin')">👁️</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>验证码</label>
+        <div class="captcha-row">
+          <div class="input-wrap">
+            <span class="input-icon">🛡️</span>
+            <input id="loginCaptcha" type="text" maxlength="4" placeholder="4位验证码" style="text-transform:uppercase;font-family:'Courier New',monospace;letter-spacing:2px;" />
+          </div>
+          <div class="captcha-box" onclick="refreshCaptcha()" id="captchaBox">
+            <span class="captcha-text" id="captchaText">A3K9</span>
+          </div>
+        </div>
+        <div style="font-size:9px;color:var(--text-secondary);margin-top:4px;">点击图片刷新 · 60秒有效 · 不区分大小写</div>
+      </div>
+
+      <div class="error-box" id="loginError"></div>
+
+      <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">⚡ 登 录</button>
+      <p class="hint" id="loginRemainHint"></p>
+    </div>
+
+    <!-- ======== REGISTER FORM ======== -->
+    <div id="registerForm" style="display:none;">
+      <div class="form-group">
+        <label>用户名</label>
+        <div class="input-wrap">
+          <span class="input-icon">👤</span>
+          <input id="regUsername" type="text" placeholder="2-20位字母、数字或中文" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>手机号</label>
+        <div class="input-wrap">
+          <span class="input-icon">📱</span>
+          <input id="regPhone" type="text" maxlength="11" placeholder="请输入11位手机号" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>密码</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input id="regPassword" type="password" placeholder="6-20位，含字母和数字" />
+          <span class="eye-toggle" id="eyeReg" onclick="togglePwd('regPassword','eyeReg')">👁️</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>确认密码</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input id="regConfirmPwd" type="password" placeholder="请再次输入密码" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>验证码</label>
+        <div class="captcha-row">
+          <div class="input-wrap">
+            <span class="input-icon">🛡️</span>
+            <input id="regCaptcha" type="text" maxlength="4" placeholder="4位验证码" style="text-transform:uppercase;font-family:'Courier New',monospace;letter-spacing:2px;" />
+          </div>
+          <div class="captcha-box" onclick="refreshCaptcha()">
+            <span class="captcha-text" id="captchaText2">A3K9</span>
+          </div>
+        </div>
+        <div style="font-size:9px;color:var(--text-secondary);margin-top:4px;">点击图片刷新 · 60秒有效</div>
+      </div>
+
+      <div class="agree-row">
+        <input type="checkbox" id="regAgree" onchange="checkRegAgree()" />
+        <span>我已阅读并同意 <a href="javascript:void(0)" onclick="showToast('info','服务协议页面开发中')">《服务协议》</a> 和 <a href="javascript:void(0)" onclick="showToast('info','隐私政策页面开发中')">《隐私政策》</a></span>
+      </div>
+
+      <div class="error-box" id="regError"></div>
+
+      <button class="btn btn-primary" id="regBtn" disabled onclick="doRegister()">📝 注 册</button>
+      <p class="hint">已有账号？<span style="color:var(--accent);cursor:pointer;" onclick="switchTab('login')">去登录</span></p>
+    </div>
+
+    <!-- ======== REGISTER SUCCESS ======== -->
+    <div class="reg-success" id="regSuccess">
+      <div class="success-icon">✅</div>
+      <h3 style="font-size:16px;margin-bottom:6px;">注册成功！</h3>
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">账号已创建，请登录</p>
+      <button class="btn btn-primary" onclick="switchTab('login')">🔑 前往登录</button>
+    </div>
+
+  </div>
+
+  <!-- Locked Card -->
+  <div class="card fade-in" id="lockedCard" style="display:none;">
+    <div class="locked-icon">🔒</div>
+    <div class="locked-title">账户已锁定</div>
+    <div class="locked-desc">连续 5 次登录失败，请 <span id="lockCountdown" style="color:var(--accent3);font-weight:700;font-size:16px;">30</span> 分钟后重试</div>
+    <div style="margin-top:14px;">
+      <div class="progress-bar"><div class="progress-fill" id="lockProgress" style="width:100%;background:var(--accent3);"></div></div>
+    </div>
+    <button class="btn btn-secondary" id="retryBtn" disabled>⏳ 请等待解锁</button>
+  </div>
+
+  <a href="index.html" class="back-link">← 返回平台首页</a>
+</div>
+
+<!-- Toast -->
+<div id="toast" style="position:fixed;top:20px;right:20px;z-index:200;padding:12px 24px;border-radius:6px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-20px);transition:all .4s;pointer-events:none;"></div>
+
+<script>
+// ========== Background ==========
+const canvas=document.getElementById('bgCanvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+const particles=[];
+class P{constructor(){this.reset();}reset(){this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.r=Math.random()*1.5+0.5;this.vx=(Math.random()-0.5)*0.3;this.vy=(Math.random()-0.5)*0.3;this.a=Math.random()*0.35+0.1;}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height)this.reset();}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,200,255,${this.a})`;ctx.fill();}}
+for(let i=0;i<70;i++)particles.push(new P());
+function animateBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='rgba(0,180,255,0.025)';ctx.lineWidth=0.5;
+  for(let x=60;x<canvas.width;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=60;y<canvas.height;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// ========== Toast ==========
+function showToast(type,msg){
+  const t=document.getElementById('toast');
+  const colors={success:'rgba(0,255,136,0.12)',error:'rgba(255,107,107,0.12)',info:'rgba(0,200,255,0.12)'};
+  const borders={success:'var(--accent2)',error:'var(--accent3)',info:'var(--accent)'};
+  t.style.background=colors[type]||colors.info;
+  t.style.border='1px solid '+(borders[type]||borders.info);
+  t.style.color=borders[type]||borders.info;
+  t.textContent=msg;
+  t.style.opacity='1';t.style.transform='translateY(0)';
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(-20px)';},3000);
+}
+
+// ========== Tab Switching ==========
+let currentTab='login';
+function switchTab(tab){
+  currentTab=tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  document.getElementById('loginForm').style.display=tab==='login'?'block':'none';
+  document.getElementById('registerForm').style.display=tab==='register'?'block':'none';
+  document.getElementById('regSuccess').classList.remove('show');
+  hideError('loginError');
+  hideError('regError');
+}
+document.getElementById('tabLogin').onclick=()=>switchTab('login');
+document.getElementById('tabRegister').onclick=()=>switchTab('register');
+
+// ========== Captcha ==========
+const chars='23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+function genCaptcha(){let s='';for(let i=0;i<4;i++)s+=chars[Math.floor(Math.random()*chars.length)];return s;}
+let currentCaptcha=genCaptcha();
+document.getElementById('captchaText').textContent=currentCaptcha;
+document.getElementById('captchaText2').textContent=currentCaptcha;
+function refreshCaptcha(){
+  currentCaptcha=genCaptcha();
+  document.getElementById('captchaText').textContent=currentCaptcha;
+  document.getElementById('captchaText2').textContent=currentCaptcha;
+  const box=document.getElementById('captchaBox');
+  box.style.transform='scale(0.93)';
+  setTimeout(()=>box.style.transform='',150);
+}
+
+// ========== Password Toggle ==========
+function togglePwd(inputId,eyeId){
+  const inp=document.getElementById(inputId);
+  const eye=document.getElementById(eyeId);
+  if(inp.type==='password'){inp.type='text';eye.textContent='🙈';}else{inp.type='password';eye.textContent='👁️';}
+}
+
+// ========== Error Helpers ==========
+function showError(id,msg,type){
+  const box=document.getElementById(id);
+  box.textContent=msg;
+  box.className='error-box show '+(type||'red');
+}
+function hideError(id){
+  const box=document.getElementById(id);
+  box.className='error-box';
+}
+
+// ========== Login Logic ==========
+let failCount=0;
+const MAX_FAIL=5;
+const LOCK_MINUTES=30;
+let lockTimer=null;
+let lockRemaining=0;
+
+// Hardcoded test accounts + registered accounts storage
+const registeredAccounts=JSON.parse(localStorage.getItem('vpp_accounts')||'[]');
+// Default test account
+if(!registeredAccounts.find(a=>a.username==='admin')){
+  registeredAccounts.push({username:'admin',phone:'13800138000',password:'123456'});
+  localStorage.setItem('vpp_accounts',JSON.stringify(registeredAccounts));
+}
+
+function updateRemainHint(){
+  const remain=MAX_FAIL-failCount;
+  const hint=document.getElementById('loginRemainHint');
+  if(remain<=2&&remain>0){hint.textContent='剩余尝试次数：'+remain+' 次';hint.className='hint warn';}
+  else{hint.textContent='';hint.className='hint';}
+}
+
+function doLogin(){
+  const account=document.getElementById('loginAccount').value.trim();
+  const password=document.getElementById('loginPassword').value;
+  const captcha=document.getElementById('loginCaptcha').value.trim().toUpperCase();
+
+  if(!account){showError('loginError','请输入用户名或手机号');shakeCard();return;}
+  if(!password){showError('loginError','请输入密码');shakeCard();return;}
+  if(captcha!==currentCaptcha){
+    showError('loginError','验证码错误或已过期，请刷新后重试');
+    refreshCaptcha();document.getElementById('loginCaptcha').value='';shakeCard();return;
+  }
+
+  // Find account by username OR phone
+  const user=registeredAccounts.find(a=>a.username===account||a.phone===account);
+
+  if(user&&user.password===password){
+    failCount=0;updateRemainHint();
+    hideError('loginError');
+    document.getElementById('loginBtn').disabled=true;
+    document.getElementById('loginBtn').textContent='登录成功 · 正在跳转...';
+
+    // Simulate role routing
+    const roles=['ADMIN','OPERATOR','DISPATCHER','VIEWER','FINANCE'];
+    const rolePages={'ADMIN':'index.html','OPERATOR':'index.html','DISPATCHER':'dashboard.html','VIEWER':'resource-monitor.html','FINANCE':'settlement.html'};
+    const role=roles[Math.floor(Math.random()*roles.length)];
+
+    setTimeout(()=>{
+      const card=document.getElementById('mainCard');
+      card.innerHTML=`
+        <div class="success-card fade-in">
+          <div class="success-icon">✅</div>
+          <h3 style="font-size:16px;margin-bottom:4px;">登录成功</h3>
+          <p class="success-role">角色：<strong style="color:var(--accent);">${role}</strong> · 用户：<strong>${user.username}</strong></p>
+          <p style="font-size:11px;color:var(--text-secondary);">跳转至：<span style="color:var(--accent);">${rolePages[role]}</span></p>
+          <div class="progress-bar"><div class="progress-fill" id="redBar"></div></div>
+        </div>`;
+      let w=0;
+      const iv=setInterval(()=>{w+=4;document.getElementById('redBar').style.width=w+'%';if(w>=100){clearInterval(iv);window.location.href=rolePages[role];}},50);
+    },1200);
+    return;
+  }
+
+  // Failed
+  failCount++;updateRemainHint();
+  if(failCount>=MAX_FAIL){lockAccount();return;}
+  const remain=MAX_FAIL-failCount;
+  showError('loginError','用户名/手机号或密码错误，还剩 '+remain+' 次尝试机会');
+  refreshCaptcha();document.getElementById('loginCaptcha').value='';shakeCard();
+}
+
+// ========== Register Logic ==========
+function checkRegAgree(){
+  document.getElementById('regBtn').disabled=!document.getElementById('regAgree').checked;
+}
+
+function doRegister(){
+  const username=document.getElementById('regUsername').value.trim();
+  const phone=document.getElementById('regPhone').value.trim();
+  const password=document.getElementById('regPassword').value;
+  const confirmPwd=document.getElementById('regConfirmPwd').value;
+  const captcha=document.getElementById('regCaptcha').value.trim().toUpperCase();
+
+  // Validations
+  if(!username||username.length<2||username.length>20){showError('regError','用户名需2-20位字符');return;}
+  if(!/^1[3-9]\d{9}$/.test(phone)){showError('regError','请输入有效的11位手机号');return;}
+  if(password.length<6||password.length>20){showError('regError','密码需6-20位');return;}
+  if(!/[a-zA-Z]/.test(password)||!/[0-9]/.test(password)){showError('regError','密码需同时包含字母和数字');return;}
+  if(password!==confirmPwd){showError('regError','两次输入的密码不一致');return;}
+  if(captcha!==currentCaptcha){showError('regError','验证码错误或已过期');refreshCaptcha();document.getElementById('regCaptcha').value='';return;}
+  if(!document.getElementById('regAgree').checked){showError('regError','请先阅读并同意服务协议');return;}
+
+  // Check duplicate
+  const accounts=JSON.parse(localStorage.getItem('vpp_accounts')||'[]');
+  if(accounts.find(a=>a.username===username)){showError('regError','该用户名已被注册');return;}
+  if(accounts.find(a=>a.phone===phone)){showError('regError','该手机号已被注册');return;}
+
+  // Register
+  accounts.push({username,phone,password});
+  localStorage.setItem('vpp_accounts',JSON.stringify(accounts));
+  // Also update local var
+  registeredAccounts.length=0;registeredAccounts.push(...accounts);
+
+  hideError('regError');
+  document.getElementById('loginForm').style.display='none';
+  document.getElementById('registerForm').style.display='none';
+  document.getElementById('regSuccess').classList.add('show');
+  showToast('success','🎉 注册成功！欢迎 '+username);
+
+  // Clear form
+  document.getElementById('regUsername').value='';
+  document.getElementById('regPhone').value='';
+  document.getElementById('regPassword').value='';
+  document.getElementById('regConfirmPwd').value='';
+  document.getElementById('regCaptcha').value='';
+  document.getElementById('regAgree').checked=false;
+  document.getElementById('regBtn').disabled=true;
+}
+
+// ========== Lock Account ==========
+function lockAccount(){
+  document.getElementById('mainCard').style.display='none';
+  document.getElementById('lockedCard').style.display='block';
+  hideError('loginError');
+  lockRemaining=LOCK_MINUTES;
+  updateLockUI();
+
+  // Demo acceleration: 1 real second = 1 lock minute
+  lockTimer=setInterval(()=>{
+    lockRemaining--;
+    updateLockUI();
+    if(lockRemaining<=0){clearInterval(lockTimer);unlockAccount();}
+  },1000);
+}
+
+function updateLockUI(){
+  document.getElementById('lockCountdown').textContent=lockRemaining;
+  const pct=(lockRemaining/LOCK_MINUTES)*100;
+  document.getElementById('lockProgress').style.width=pct+'%';
+  if(lockRemaining>0){
+    document.getElementById('retryBtn').disabled=true;
+    document.getElementById('retryBtn').textContent='⏳ 请等待解锁';
+  }
+}
+
+function unlockAccount(){
+  failCount=0;
+  document.getElementById('lockedCard').style.display='none';
+  document.getElementById('mainCard').style.display='block';
+  updateRemainHint();
+  document.getElementById('retryBtn').disabled=false;
+  document.getElementById('retryBtn').textContent='✅ 已解锁，可重新登录';
+}
+
+// ========== Shake ==========
+function shakeCard(){
+  const card=document.getElementById('mainCard');
+  card.classList.add('shake');
+  setTimeout(()=>card.classList.remove('shake'),500);
+}
+
+// ========== Keyboard Enter ==========
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'){
+    if(currentTab==='login')doLogin();
+    else doRegister();
+  }
+});
+</script>
+</body>
+</html>

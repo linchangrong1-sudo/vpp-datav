@@ -1,0 +1,124 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: ⚡
+      - generic [ref=e7]: 实时调度·运行总览
+    - generic [ref=e8]:
+      - generic [ref=e9]: 2026年6月3日星期三
+      - generic [ref=e10]: 17:35:09
+      - generic [ref=e11]: "|"
+      - generic [ref=e12]: 🌤 晴 23°C · 实时辐照 876 W/m²
+    - generic [ref=e13]:
+      - generic [ref=e15]: 实时监控中
+      - generic [ref=e16]: "|"
+      - generic [ref=e17]: 👤 调度员 · 张三
+  - generic [ref=e18]:
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]: 📡
+          - text: 资源实时状态
+          - generic [ref=e23]: (4类 · 23个场站)
+        - generic [ref=e24]:
+          - generic [ref=e25] [cursor=pointer]:
+            - generic [ref=e26]: ☀️
+            - generic [ref=e27]:
+              - generic [ref=e28]: 光伏集群
+              - generic [ref=e29]: 6个场站 · 在线6
+            - generic [ref=e30]:
+              - generic [ref=e31]: "+445"
+              - generic [ref=e32]: MW +12%
+          - generic [ref=e34] [cursor=pointer]:
+            - generic [ref=e35]: 🔋
+            - generic [ref=e36]:
+              - generic [ref=e37]: 储能集群
+              - generic [ref=e38]: 8个站点 · 在线7
+            - generic [ref=e39]:
+              - generic [ref=e40]: "-42"
+              - generic [ref=e41]: MW 充电中
+          - generic [ref=e43] [cursor=pointer]:
+            - generic [ref=e44]: 🔌
+            - generic [ref=e45]:
+              - generic [ref=e46]: 充电桩网络
+              - generic [ref=e47]: 6个站点 · 在线5
+            - generic [ref=e48]:
+              - generic [ref=e49]: "+18"
+              - generic [ref=e50]: MW +8%
+          - generic [ref=e52] [cursor=pointer]:
+            - generic [ref=e53]: 🏭
+            - generic [ref=e54]:
+              - generic [ref=e55]: 可控负荷
+              - generic [ref=e56]: 3个节点 · 在线3
+            - generic [ref=e57]:
+              - generic [ref=e58]: "+126"
+              - generic [ref=e59]: MW 已调节
+      - generic [ref=e62]:
+        - generic [ref=e63]: 📈
+        - text: 发电功率 & 环境参数
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e69]: 🚨
+          - text: 实时告警
+          - generic [ref=e70]: (闪烁=未处置)
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - generic [ref=e73]: 🔴
+            - generic [ref=e74]: "储能站 #ES-015 电池组 #3 温度异常升至 48°C"
+            - generic [ref=e75]: 14:35:22
+            - generic [ref=e76]: 未处置
+          - generic [ref=e77]:
+            - generic [ref=e78]: 🔴
+            - generic [ref=e79]: "光伏 #PS-028 输出功率骤降至 28MW (目标 48.5MW)"
+            - generic [ref=e80]: 14:32:10
+            - generic [ref=e81]: 处置中
+          - generic [ref=e82]:
+            - generic [ref=e83]: 🟡
+            - generic [ref=e84]: "充电桩 #CP-008 转换效率降至 88%，低于 92% 阈值"
+            - generic [ref=e85]: 14:28:05
+            - generic [ref=e86]: 观察
+          - generic [ref=e87]:
+            - generic [ref=e88]: 🔴
+            - generic [ref=e89]: "可控负荷 #CL-003 响应超时 30s，未执行降载指令"
+            - generic [ref=e90]: 14:15:33
+            - generic [ref=e91]: 未处置
+          - generic [ref=e92]:
+            - generic [ref=e93]: 🟡
+            - generic [ref=e94]: "充电桩 #CP-005 功率因数降至 0.85，建议补偿调节"
+            - generic [ref=e95]: 14:08:40
+            - generic [ref=e96]: 观察
+          - generic [ref=e97]:
+            - generic [ref=e98]: 🔵
+            - generic [ref=e99]: "储能 #ES-018 完成计划充放电循环，SOC恢复至 85%"
+            - generic [ref=e100]: 13:55:18
+    - generic [ref=e103]:
+      - generic [ref=e104] [cursor=pointer]: 📊 预测 vs 实际
+      - generic [ref=e105] [cursor=pointer]: 📋 设备使用率
+    - generic [ref=e110]:
+      - generic [ref=e112]:
+        - generic [ref=e113]: 🔌
+        - text: 充电站效率分析
+      - generic [ref=e117]:
+        - generic [ref=e118]:
+          - generic [ref=e119]: 🎛️
+          - text: 调度指令下发
+        - generic [ref=e120]:
+          - generic [ref=e121] [cursor=pointer]: ☀️光伏
+          - generic [ref=e122] [cursor=pointer]: 🔋储能
+          - generic [ref=e123] [cursor=pointer]: 🔌充电桩
+          - generic [ref=e124] [cursor=pointer]: 🏭负荷
+        - generic [ref=e125]:
+          - generic [ref=e126]: ☀️ 光伏集群 · 辐照度 876 W/m²
+          - generic [ref=e127]:
+            - generic [ref=e128]:
+              - generic [ref=e129]: 辐照偏差
+              - generic [ref=e130]: +3.8%
+              - generic [ref=e131]: 10%阈值内 ✓
+            - generic [ref=e132]:
+              - generic [ref=e133]: 限发状态
+              - generic [ref=e134]: 正常
+              - generic [ref=e135]: 今日1次限发
+          - generic [ref=e136]: "可切优先级: 2个普通(高) · 1个农光互补(低)"
+        - button "📋 进入详细调度" [ref=e138] [cursor=pointer]
+  - generic [ref=e139]:
+    - generic [ref=e140]: ⚡ 调度快报
+    - generic [ref=e142]: "[14:32:10] 光伏 #PS-028 出力超计划 105%，自动上调目标至 48.5MW | [14:30:05] 储能 #ES-012 充放电切换完成 SOC 78% | [14:28:33] 充电桩 #CP-012 有序充电策略生效，负荷优化中 | [14:25:00] 可控负荷 #CL-005 响应削峰指令，降载 12MW | [14:20:15] 储能 #ES-015 电池温度恢复正常，告警解除"

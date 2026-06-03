@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实时调度工作站 - VPP 虚拟电厂</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root {
+  --bg-deep: #0a0e27; --bg-panel: rgba(6, 30, 60, 0.75);
+  --border-glow: rgba(0, 200, 255, 0.35); --accent: #00d4ff;
+  --accent2: #00ff88; --accent3: #ff6b6b; --accent4: #ffaa00;
+  --text-primary: #e0f0ff; --text-secondary: #7eb8da;
+  --glow-soft: 0 0 20px rgba(0, 180, 255, 0.15);
+  --glow-strong: 0 0 30px rgba(0, 200, 255, 0.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background: var(--bg-deep); color: var(--text-primary);
+  font-family: 'Microsoft YaHei','PingFang SC',sans-serif;
+  height: 100vh; overflow: hidden;
+}
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+
+.container{
+  position:relative;z-index:1;height:100vh;
+  display:flex;flex-direction:column;padding:12px 16px;
+}
+
+/* Header */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:10px;border-bottom:1px solid rgba(0,200,255,0.2);
+  flex-shrink:0;margin-bottom:10px;
+}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-logo{
+  width:34px;height:34px;background:linear-gradient(135deg,var(--accent4),var(--accent3));
+  border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:bold;color:#fff;box-shadow:0 0 18px rgba(255,170,0,0.5);
+}
+.header-title{font-size:18px;font-weight:700;letter-spacing:2px;}
+.header-breadcrumb{font-size:12px;color:var(--text-secondary);}
+.header-breadcrumb span{color:var(--accent);cursor:pointer;}
+.header-breadcrumb span:hover{text-decoration:underline;}
+.header-center{font-size:13px;color:var(--text-secondary);}
+.header-center .time{font-size:24px;font-weight:700;color:#e0f0ff;font-family:'Consolas',monospace;letter-spacing:1px;}
+.header-right{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-secondary);}
+.header-right .live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent3);box-shadow:0 0 8px var(--accent3);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+.body{flex:1;display:flex;gap:12px;min-height:0;}
+
+/* Left Sidebar */
+.sidebar{
+  width:200px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;
+  overflow-y:auto;
+}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+.side-nav{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:8px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+}
+.side-nav::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.nav-title{font-size:11px;color:var(--text-secondary);padding:4px 8px 6px;text-align:center;border-bottom:1px solid rgba(0,180,255,0.1);margin-bottom:4px;}
+.nav-item{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+  border-radius:6px;cursor:pointer;transition:all .3s;
+  border-left:2px solid transparent;margin-bottom:2px;font-size:12px;
+  color:var(--text-secondary);
+}
+.nav-item:hover{background:rgba(0,200,255,0.06);color:var(--text-primary);}
+.nav-item.active{
+  background:rgba(0,200,255,0.12);color:var(--accent);
+  border-left-color:var(--accent);box-shadow:inset 0 0 12px rgba(0,200,255,0.08);
+}
+.nav-item .nav-icon{font-size:16px;flex-shrink:0;}
+.nav-item .nav-badge{font-size:9px;padding:2px 6px;border-radius:8px;margin-left:auto;}
+
+/* Main Area */
+.main{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
+
+/* Top Status Bar */
+.status-bar{
+  display:flex;gap:10px;flex-shrink:0;
+}
+.status-chip{
+  flex:1;background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:6px;padding:10px 14px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+  display:flex;align-items:center;gap:10px;
+}
+.status-chip .chip-icon{font-size:22px;flex-shrink:0;}
+.status-chip .chip-info{flex:1;min-width:0;}
+.status-chip .chip-label{font-size:10px;color:var(--text-secondary);}
+.status-chip .chip-value{font-size:20px;font-weight:700;font-family:'Consolas',monospace;}
+.status-chip .chip-sub{font-size:9px;color:var(--text-secondary);margin-top:1px;}
+
+/* Content Rows */
+.content-row{display:flex;gap:10px;flex:1;min-height:0;}
+.content-col{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
+
+.panel{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:12px 14px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+}
+.panel::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.panel-title{
+  font-size:13px;font-weight:700;margin-bottom:10px;
+  padding-left:10px;border-left:3px solid var(--accent);
+  display:flex;align-items:center;gap:6px;flex-shrink:0;
+}
+.chart-box{width:100%;height:100%;min-height:150px;}
+
+/* SOC Ring */
+.soc-ring-wrap{
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:4px;
+}
+.soc-ring{
+  width:120px;height:120px;border-radius:50%;
+  background:conic-gradient(var(--accent2) 0deg, var(--accent2) 280deg, rgba(0,40,80,0.8) 280deg, rgba(0,40,80,0.8) 360deg);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+.soc-ring::after{
+  content:'';position:absolute;width:90px;height:90px;border-radius:50%;
+  background:var(--bg-panel);backdrop-filter:blur(8px);
+}
+.soc-num{position:relative;z-index:1;font-size:28px;font-weight:700;font-family:'Consolas',monospace;color:var(--accent2);}
+
+/* Temperature / PCS alert */
+.alert-indicator{
+  display:flex;align-items:center;gap:6px;padding:6px 10px;
+  border-radius:4px;font-size:11px;
+}
+.alert-indicator.safe{background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);color:var(--accent2);}
+.alert-indicator.danger{background:rgba(255,107,107,0.1);border:1px solid var(--accent3);color:var(--accent3);animation:flashAl 1.5s infinite;}
+@keyframes flashAl{0%,100%{opacity:1}50%{opacity:0.5}}
+
+/* Priority Table */
+.prio-table{width:100%;font-size:10px;border-collapse:collapse;}
+.prio-table th{text-align:left;padding:4px 8px;color:var(--text-secondary);border-bottom:1px solid rgba(0,180,255,0.15);}
+.prio-table td{padding:5px 8px;border-bottom:1px solid rgba(0,180,255,0.06);}
+.prio-table .prio-high{color:var(--accent3);}
+.prio-table .prio-low{color:var(--accent2);}
+.prio-badge{font-size:8px;padding:1px 5px;border-radius:3px;}
+.prio-badge.high{background:rgba(255,107,107,0.2);color:var(--accent3);}
+.prio-badge.low{background:rgba(0,255,136,0.15);color:var(--accent2);}
+.prio-badge.locked{background:rgba(255,130,100,0.2);color:#ff8264;}
+.prio-badge.ok{background:rgba(0,200,255,0.12);color:var(--accent);}
+
+/* Dispatch Form */
+.form-section{margin-bottom:10px;}
+.form-section .sec-label{font-size:10px;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;}
+.form-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.form-row label{font-size:11px;color:var(--text-secondary);width:85px;flex-shrink:0;text-align:right;}
+.form-row input,.form-row select{
+  flex:1;padding:6px 10px;font-size:12px;
+  background:rgba(0,20,50,0.6);border:1px solid rgba(0,200,255,0.25);
+  border-radius:4px;color:var(--text-primary);
+  outline:none;font-family:inherit;
+  transition:border-color .3s;
+}
+.form-row input:focus,.form-row select:focus{border-color:var(--accent);box-shadow:0 0 10px rgba(0,200,255,0.15);}
+.form-row select{appearance:none;cursor:pointer;}
+.form-row select option{background:var(--bg-deep);color:var(--text-primary);}
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:5px;
+  background:rgba(0,200,255,0.2);border-radius:3px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;
+  background:var(--accent);border-radius:50%;cursor:pointer;
+  box-shadow:0 0 12px rgba(0,200,255,0.5);border:2px solid #e0f0ff;
+}
+.range-dual{
+  display:flex;align-items:center;gap:6px;flex:1;
+}
+.range-dual span{font-size:10px;color:var(--text-secondary);white-space:nowrap;}
+.range-val{font-size:12px;font-weight:600;min-width:40px;text-align:center;}
+
+/* Mode Switch */
+.mode-switch{display:flex;gap:0;margin-bottom:8px;}
+.mode-btn{
+  flex:1;padding:8px;border:1px solid rgba(0,200,255,0.25);cursor:pointer;
+  font-size:11px;text-align:center;transition:all .3s;
+  background:rgba(0,20,50,0.4);color:var(--text-secondary);
+  font-family:inherit;
+}
+.mode-btn:first-child{border-radius:6px 0 0 6px;}
+.mode-btn:last-child{border-radius:0 6px 6px 0;}
+.mode-btn.active{
+  background:rgba(0,200,255,0.15);color:var(--accent);
+  border-color:var(--accent);box-shadow:0 0 10px rgba(0,200,255,0.2);
+}
+
+/* Tier Selector */
+.tier-row{display:flex;gap:6px;flex-wrap:wrap;}
+.tier-chip{
+  padding:6px 12px;border:1px solid rgba(0,200,255,0.2);
+  border-radius:4px;cursor:pointer;font-size:11px;transition:all .3s;
+  background:rgba(0,20,50,0.4);color:var(--text-secondary);
+}
+.tier-chip:hover{border-color:var(--accent);color:var(--text-primary);}
+.tier-chip.active{border-color:var(--accent);background:rgba(0,200,255,0.12);color:var(--accent);}
+.tier-chip.blocked{opacity:0.4;cursor:not-allowed;border-color:var(--accent3);}
+.tier-chip.blocked::after{content:' ✕';color:var(--accent3);font-weight:bold;}
+
+/* Checkbox */
+.check-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);}
+.check-row input[type=checkbox]{accent-color:var(--accent);}
+.check-row .required{color:var(--accent3);font-size:9px;margin-left:4px;}
+
+/* Action Buttons */
+.btn-row{display:flex;gap:8px;margin-top:6px;}
+.btn{
+  flex:1;padding:10px 0;border-radius:6px;font-size:12px;
+  font-weight:600;cursor:pointer;border:none;
+  transition:all .3s;font-family:inherit;
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent),#0066ff);
+  color:#fff;box-shadow:0 0 14px rgba(0,200,255,0.3);
+}
+.btn-primary:hover{box-shadow:0 0 22px rgba(0,200,255,0.6);transform:translateY(-1px);}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;box-shadow:none;transform:none;}
+.btn-danger{
+  background:linear-gradient(135deg,var(--accent3),#cc0000);
+  color:#fff;box-shadow:0 0 12px rgba(255,107,107,0.3);
+}
+.btn-danger:hover{box-shadow:0 0 20px rgba(255,107,107,0.6);transform:translateY(-1px);}
+.btn-outline{
+  background:transparent;color:var(--accent);
+  border:1px solid var(--accent);
+}
+.btn-outline:hover{background:rgba(0,200,255,0.1);}
+
+/* Constraint Warning */
+.constraint-warn{
+  display:none;padding:8px 10px;border-radius:4px;font-size:10px;
+  background:rgba(255,107,107,0.1);border:1px dashed var(--accent3);
+  color:var(--accent3);margin-bottom:6px;
+}
+.constraint-warn.show{display:block;}
+
+/* Contract Limit Bar */
+.contract-bar{
+  height:6px;background:rgba(255,255,255,0.08);border-radius:3px;
+  overflow:hidden;position:relative;margin-top:2px;
+}
+.contract-bar .used{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent2),var(--accent4));transition:width .5s;}
+.contract-bar .limit-marker{
+  position:absolute;top:-4px;width:2px;height:14px;
+  background:var(--accent3);border-radius:1px;
+}
+
+/* Toasts */
+.toast{
+  position:fixed;top:20px;right:20px;z-index:100;
+  padding:12px 24px;border-radius:6px;font-size:13px;font-weight:600;
+  opacity:0;transform:translateY(-20px);transition:all .4s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.success{background:rgba(0,255,136,0.15);border:1px solid var(--accent2);color:var(--accent2);}
+.toast.error{background:rgba(255,107,107,0.15);border:1px solid var(--accent3);color:var(--accent3);}
+
+/* History Log */
+.history-log{font-size:10px;max-height:100px;overflow-y:auto;}
+.history-log::-webkit-scrollbar{width:3px;}
+.history-log::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+.history-item{
+  display:flex;align-items:center;gap:8px;padding:4px 6px;
+  border-bottom:1px solid rgba(0,180,255,0.06);
+}
+.history-item .h-time{color:var(--text-secondary);white-space:nowrap;}
+.history-item .h-user{color:var(--accent);}
+.history-item .h-action{flex:1;}
+.history-item .h-result{padding:1px 6px;border-radius:3px;font-size:9px;}
+.history-item .h-result.ok{background:rgba(0,255,136,0.12);color:var(--accent2);}
+
+/* Station Cards */
+.station-list{display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto;}
+.station-list::-webkit-scrollbar{width:3px;}
+.station-list::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+.station-card{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;
+  border-radius:4px;background:rgba(0,180,255,0.04);
+  border:1px solid rgba(0,180,255,0.08);cursor:pointer;font-size:11px;
+  transition:all .3s;
+}
+.station-card:hover{background:rgba(0,200,255,0.08);border-color:var(--border-glow);}
+.station-card.selected{border-color:var(--accent);background:rgba(0,200,255,0.1);}
+.station-card .s-name{flex:1;font-weight:600;}
+.station-card .s-power{color:var(--accent);font-family:'Consolas',monospace;}
+.station-card .s-cars{font-size:10px;color:var(--text-secondary);}
+
+/* Bottom bar */
+.bottom-bar{
+  height:140px;flex-shrink:0;display:flex;gap:10px;margin-top:10px;
+}
+.bottom-panel{
+  flex:1;background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;position:relative;backdrop-filter:blur(8px);
+  box-shadow:var(--glow-soft);padding:8px;
+}
+.bottom-panel::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+
+/* Countdown */
+.countdown{font-size:22px;font-weight:700;font-family:'Consolas',monospace;}
+.countdown.warning{color:var(--accent4);animation:flashAl 1s infinite;}
+.countdown.urgent{color:var(--accent3);animation:flashAl 0.6s infinite;}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<div class="toast" id="toast"></div>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">⚡</div>
+      <div>
+        <div class="header-title">实时调度工作站</div>
+        <div class="header-breadcrumb">VPP数字平台 / <span onclick="location.href='dispatch-overview.html'">调度总览</span> / <span>详细调度</span></div>
+      </div>
+    </div>
+    <div class="header-center">
+      <span class="time" id="liveTime">--:--:--</span>
+    </div>
+    <div class="header-right">
+      <div class="live-dot"></div><span>调度模式: 手动控制</span>
+      <span>|</span>
+      <span>👤 调度员 · 张三</span>
+      <button class="btn btn-outline" style="flex:none;padding:5px 14px;font-size:11px;" onclick="location.href='dispatch-overview.html'">← 返回总览</button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+      <div class="side-nav">
+        <div class="nav-title">资源类型</div>
+        <div class="nav-item active" data-type="solar" onclick="switchType('solar')">
+          <span class="nav-icon">☀️</span>光伏调度
+          <span class="nav-badge" style="background:rgba(255,170,0,0.15);color:#ffaa00;">6站</span>
+        </div>
+        <div class="nav-item" data-type="storage" onclick="switchType('storage')">
+          <span class="nav-icon">🔋</span>储能调度
+          <span class="nav-badge" style="background:rgba(0,255,136,0.15);color:#00ff88;">8站</span>
+        </div>
+        <div class="nav-item" data-type="load" onclick="switchType('load')">
+          <span class="nav-icon">🏭</span>可控负荷
+          <span class="nav-badge" style="background:rgba(255,130,100,0.15);color:#ff8264;">3节点</span>
+        </div>
+        <div class="nav-item" data-type="charger" onclick="switchType('charger')">
+          <span class="nav-icon">🔌</span>充电桩群
+          <span class="nav-badge" style="background:rgba(180,130,255,0.15);color:#b482ff;">6站</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main" id="mainContent"></div>
+  </div>
+
+  <!-- Bottom Bar -->
+  <div class="bottom-bar">
+    <div class="bottom-panel" id="bottomChart1"></div>
+    <div class="bottom-panel" id="bottomChart2"></div>
+  </div>
+</div>
+
+<script>
+// ========== Background ==========
+const canvas=document.getElementById('bgCanvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+const particles=[];
+class P{constructor(){this.reset();}reset(){this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.r=Math.random()*1.5+0.5;this.vx=(Math.random()-0.5)*0.3;this.vy=(Math.random()-0.5)*0.3;this.a=Math.random()*0.4+0.15;}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height)this.reset();}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,200,255,${this.a})`;ctx.fill();}}
+for(let i=0;i<60;i++)particles.push(new P());
+function animateBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='rgba(0,180,255,0.03)';ctx.lineWidth=0.5;
+  for(let x=60;x<canvas.width;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=60;y<canvas.height;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// Clock
+function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});}
+updateTime();setInterval(updateTime,1000);
+
+// Toast
+function showToast(type,msg){
+  const t=document.getElementById('toast');
+  t.className=`toast ${type} show`;
+  t.textContent=msg;
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ========== Type Switching ==========
+let currentType='solar';
+let bottomChart1=null,bottomChart2=null;
+
+function switchType(type){
+  currentType=type;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.type===type));
+  renderMain(type);
+  renderBottomCharts(type);
+}
+
+function renderMain(type){
+  const mc=document.getElementById('mainContent');
+  const r=renderers[type];
+  mc.innerHTML=r?r():'';
+  initTypeCharts(type);
+  attachTypeEvents(type);
+}
+
+// ========== Each Type Renderer ==========
+const renderers={
+  solar:()=>`<div class="content-row" style="flex:1;">
+    <div class="content-col" style="flex:2;">
+      <div class="panel" style="flex:1;">
+        <div class="panel-title">📊 超短期辐照预测 vs 实测功率 <span style="font-size:10px;color:var(--text-secondary);">(未来30min · 偏差>10%红标)</span></div>
+        <div id="chartSolarPred" class="chart-box"></div>
+      </div>
+    </div>
+    <div class="content-col" style="flex:1;">
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title">⚠️ 限发记录</div>
+        <div style="font-size:11px;">
+          <div class="alert-indicator safe" style="margin-bottom:4px;">🟢 电网反送电限制: 50MW (当前出力 445MW，裕度充足)</div>
+          <div class="alert-indicator safe">🟢 逆变器过载保护: 正常 (阈值 110%Pn)</div>
+          <div style="margin-top:6px;font-size:10px;color:var(--text-secondary);">
+            📋 今日限发记录: <span style="color:var(--accent4);">1次</span> · 累计受限电量 2.4 MWh
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="flex:1;">
+        <div class="panel-title">📋 可切优先级排序</div>
+        <table class="prio-table">
+          <thead><tr><th>电站</th><th>类型</th><th>当前出力</th><th>优先级</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td>PS-031 华南园区</td><td><span class="prio-badge high">普通屋顶</span></td><td>142 MW</td><td class="prio-high">高 · 优先切除</td><td><span class="prio-badge ok">可切</span></td></tr>
+            <tr><td>PS-052 东部新区</td><td><span class="prio-badge high">普通屋顶</span></td><td>95 MW</td><td class="prio-high">高 · 优先切除</td><td><span class="prio-badge ok">可切</span></td></tr>
+            <tr><td>PS-028 西北基地</td><td><span class="prio-badge low">农光互补</span></td><td>185 MW</td><td class="prio-low">低 · 末位切除</td><td><span class="prio-badge ok">可切</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="content-row" style="flex:0 0 auto;">
+    <div class="content-col" style="flex:1;">
+      <div class="panel">
+        <div class="panel-title">🎛️ 光伏调度指令下发</div>
+        <div class="form-section">
+          <div class="sec-label">操作模式</div>
+          <div class="mode-switch" id="solarMode">
+            <div class="mode-btn active" data-mode="derate">降额运行</div>
+            <div class="mode-btn" data-mode="disconnect">零出力脱网</div>
+          </div>
+        </div>
+        <div id="solarDeratePanel">
+          <div class="form-row"><label>降额比例</label><div class="range-dual"><span>0%</span><input type="range" min="0" max="100" value="60" id="solarDerateSlider"><span>100%</span></div><span class="range-val" id="solarDerateVal">60%</span></div>
+          <div class="form-row"><label>目标功率</label><input type="number" value="267" id="solarTarget" style="width:100px;flex:none;"> <span style="font-size:10px;color:var(--text-secondary);">MW (当前445MW × 60%)</span></div>
+        </div>
+        <div class="form-row"><label>有效期</label><select id="solarValid"><option>15 分钟</option><option selected>30 分钟</option><option>60 分钟</option></select></div>
+        <div class="constraint-warn" id="solarWarn">⚠️ 所选电站包含农光互补项目(PS-028)，将排在末位执行切出</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="sendDispatch('solar')" id="solarSendBtn">⚡ 立即下发</button>
+          <button class="btn btn-danger" onclick="sendEmergency('solar')">🛑 紧急脱网</button>
+        </div>
+      </div>
+    </div>
+    <div class="content-col" style="flex:1;">
+      <div class="panel">
+        <div class="panel-title">📜 最近指令记录</div>
+        <div class="history-log" id="solarHistory"></div>
+      </div>
+    </div>
+  </div>`,
+
+  storage:()=>`<div class="content-row" style="flex:1;">
+    <div class="content-col" style="flex:1.2;">
+      <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+        <div class="panel-title">🔋 电池组 SOC 状态</div>
+        <div style="display:flex;gap:20px;align-items:center;height:100%;">
+          <div class="soc-ring-wrap">
+            <div class="soc-ring" id="socRing">
+              <div class="soc-num" id="socNum">78%</div>
+            </div>
+            <div style="font-size:10px;color:var(--text-secondary);text-align:center;">
+              <div>高限保护: <span style="color:var(--accent3);">90%</span></div>
+              <div>低限保护: <span style="color:var(--accent4);">10%</span></div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+            <div class="alert-indicator safe">🟢 电池温度 32°C (正常范围 15~45°C)</div>
+            <div class="alert-indicator safe">🟢 PCS 状态: 正常运行</div>
+            <div class="alert-indicator safe">🟢 BMS 均衡: 正常</div>
+            <div style="margin-top:4px;font-size:10px;color:var(--text-secondary);">
+              📊 充放电循环: <span style="color:var(--accent);">3次/日</span> · SOH: <span style="color:var(--accent2);">96.5%</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">
+              充/放电最大允许: <span style="color:var(--accent);">80MW</span>
+              <span style="font-size:9px;color:var(--accent2);">| SOC>85%时放电功率将自动降额</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="content-col" style="flex:0.8;">
+      <div class="panel" style="flex:1;">
+        <div class="panel-title">📊 各储能站 SOC</div>
+        <div id="chartStorageBar" class="chart-box"></div>
+      </div>
+    </div>
+  </div>
+  <div class="content-row" style="flex:0 0 auto;">
+    <div class="content-col" style="flex:1;">
+      <div class="panel">
+        <div class="panel-title">🎛️ 储能调度指令下发</div>
+        <div class="form-section">
+          <div class="sec-label">调度模式</div>
+          <div class="mode-switch" id="storageMode">
+            <div class="mode-btn active" data-mode="plan">计划充放</div>
+            <div class="mode-btn" data-mode="emergency">紧急功率支撑</div>
+          </div>
+        </div>
+        <div id="storagePlanPanel">
+          <div class="form-row"><label>充放电方向</label><select id="storageDir"><option>充电</option><option selected>放电</option></select></div>
+          <div class="form-row"><label>目标功率</label><input type="number" value="60" id="storageTarget" style="width:100px;flex:none;"> <span style="font-size:10px;color:var(--text-secondary);">MW (最大允许 80MW)</span></div>
+          <div class="form-row"><label>SOC 目标</label><div class="range-dual"><span>10%</span><input type="range" min="10" max="90" value="85" id="storageSOCTarget"><span>90%</span></div><span class="range-val" id="storageSOCVal">85%</span></div>
+        </div>
+        <div id="storageEmergPanel" style="display:none;">
+          <div style="font-size:11px;color:var(--accent3);margin-bottom:6px;">⚠️ 紧急模式将以最大安全功率执行充/放电，忽略 SOC 保护阈值</div>
+          <div class="form-row"><label>方向</label><select id="storageEmergDir"><option>最大放电</option><option>最大充电</option></select></div>
+        </div>
+        <div class="form-section" style="margin-top:6px;">
+          <div class="sec-label" style="color:var(--accent);">🔄 辅助服务调频模式</div>
+          <div class="mode-switch" id="freqMode" style="margin-bottom:6px;">
+            <div class="mode-btn active" data-freq="primary">一次调频</div>
+            <div class="mode-btn" data-freq="secondary">二次调频(AGC)</div>
+            <div class="mode-btn" data-freq="ramp">爬坡支撑</div>
+          </div>
+          <div style="display:flex;gap:6px;font-size:10px;color:var(--text-secondary);margin-bottom:6px;">
+            <span>一次: ≤30s · 容量20MW</span>
+            <span>二次: ≤3min · 容量30MW</span>
+            <span>爬坡: 15MW/min · ≥10min</span>
+          </div>
+          <div class="form-row"><label>调频容量</label><input type="number" value="20" style="width:80px;flex:none;"> <span style="font-size:10px;color:var(--text-secondary);">MW · Kp: <span style="color:var(--accent2);">0.92</span></span></div>
+        </div>
+        <div class="form-row"><label>有效期</label><select id="storageValid"><option selected>15 分钟</option><option>30 分钟</option><option>60 分钟</option></select></div>
+        <div class="constraint-warn" id="storageWarn">⚠️ SOC 78% 已进入放电降额区间，最大放电功率限制为 80MW</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="sendDispatch('storage')" id="storageSendBtn">⚡ 立即下发</button>
+          <button class="btn btn-outline" onclick="showToast('success','已切换至待机模式')">⏸ 强制待机</button>
+        </div>
+      </div>
+    </div>
+    <div class="content-col" style="flex:1;">
+      <div class="panel">
+        <div class="panel-title">📜 最近指令记录</div>
+        <div class="history-log" id="storageHistory"></div>
+      </div>
+    </div>
+  </div>`,
+
+  load:()=>`<div class="content-row" style="flex:1;">
+    <div class="content-col" style="flex:1;">
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title">📋 合约约束状态</div>
+        <div style="font-size:11px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span>合约约定: 最多可切 <span style="color:var(--accent3);font-weight:700;">30%</span> 空调负荷</span>
+            <span style="color:var(--text-secondary);">当前已切: <span id="loadCutted">15%</span></span>
+          </div>
+          <div class="contract-bar">
+            <div class="used" style="width:15%;" id="contractBar"></div>
+            <div class="limit-marker" style="left:30%;"></div>
+          </div>
+          <div style="font-size:9px;color:var(--text-secondary);margin-top:2px;">← 30% 合约红线 →</div>
+        </div>
+      </div>
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title">⏱ 中断计时</div>
+        <div style="display:flex;gap:20px;align-items:center;">
+          <div>
+            <div style="font-size:10px;color:var(--text-secondary);">已持续中断</div>
+            <div class="countdown" id="loadElapsed" style="color:var(--accent);">08:32</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text-secondary);">最长中断时间</div>
+            <div class="countdown" id="loadMaxTime" style="color:var(--accent2);">60:00</div>
+          </div>
+          <div style="flex:1;font-size:10px;color:var(--text-secondary);">
+            📌 到点自动复电<br/>⚡ 如果超时需赔付: <span style="color:var(--accent3);">¥1.5/kWh</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="flex:1;">
+        <div class="panel-title">📊 可调节负荷分布</div>
+        <div id="chartLoadDist" class="chart-box"></div>
+      </div>
+    </div>
+    <div class="content-col" style="flex:1;">
+      <div class="panel" style="flex:1;">
+        <div class="panel-title">🎛️ 可控负荷调度指令下发</div>
+        <div class="form-section">
+          <div class="form-section">
+          <div class="sec-label" style="color:var(--accent3);">🔴 需求响应模式 (DR)</div>
+          <div class="mode-switch" id="drMode" style="margin-bottom:6px;">
+            <div class="mode-btn active" data-dr="invited">邀约 DR</div>
+            <div class="mode-btn" data-dr="urgent">紧急 DR</div>
+            <div class="mode-btn" data-dr="realtime">实时 DR</div>
+          </div>
+          <div style="display:flex;gap:6px;font-size:10px;color:var(--text-secondary);margin-bottom:4px;">
+            <span>邀约: 提前4h · ≥2h</span>
+            <span>紧急: 即时 · ≥15min</span>
+            <span>实时: 15min · ≥30min</span>
+          </div>
+          <div class="form-row"><label>事件编号</label><span style="font-size:11px;color:var(--accent4);">DR-202606-003</span></div>
+          <div class="form-row"><label>补贴单价</label><span style="font-size:11px;color:var(--accent2);">¥1.2 /kWh</span></div>
+          <div class="form-row"><label>预估响应</label><span style="font-size:11px;color:var(--accent);">18 MW</span></div>
+        </div>
+        <div class="sec-label">柔性调节档位 (空调 #CL-003)</div>
+          <div class="tier-row" id="loadTiers">
+            <div class="tier-chip" data-tier="1">升1℃ (切5%)</div>
+            <div class="tier-chip active" data-tier="2">升2℃ (切15%)</div>
+            <div class="tier-chip" data-tier="3">升3℃ (切25%)</div>
+            <div class="tier-chip blocked" data-tier="4">全切 (35% ⚠超限)</div>
+          </div>
+        </div>
+        <div class="constraint-warn show" id="loadWarn">⚠️ 「全切」档位超出合约上限 30%，已自动拦截。如需执行请联系用户重新签约。</div>
+        <div class="form-row"><label>调节方向</label><select id="loadDir"><option selected>削峰 (降载)</option><option>填谷 (增载)</option></select></div>
+        <div class="form-row" id="peakRow"><label>削峰目标</label><div class="range-dual"><span>0MW</span><input type="range" min="0" max="50" value="25" id="peakSlider"><span>50MW</span></div><span class="range-val" id="peakVal">25 MW</span></div>
+        <div class="form-row"><label>响应时间</label><select><option selected>≤ 5 分钟</option><option>≤ 15 分钟</option></select></div>
+        <div class="form-row"><label>补偿电价</label><input type="number" value="1.5" step="0.1" style="width:100px;flex:none;"> <span style="font-size:10px;color:var(--text-secondary);">元/kWh</span></div>
+        <div class="form-row"><label>有效期</label><select><option>15 分钟</option><option selected>30 分钟</option><option>60 分钟</option></select></div>
+        <div class="check-row" style="margin-bottom:6px;">
+          <input type="checkbox" id="loadNotify"> <label for="loadNotify">我已确认用户知情通知已发送</label>
+          <span class="required">(必选)</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="sendDispatch('load')" id="loadSendBtn" disabled>⚡ 立即下发</button>
+          <button class="btn btn-danger" onclick="showToast('error','已取消调度，将自动恢复默认状态')">✕ 取消调度</button>
+        </div>
+      </div>
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title">📜 最近指令记录</div>
+        <div class="history-log" id="loadHistory"></div>
+      </div>
+    </div>
+  </div>`,
+
+  charger:()=>`<div class="content-row" style="flex:1;">
+    <div class="content-col" style="flex:1.2;">
+      <div class="panel" style="flex:1;">
+        <div class="panel-title">📊 充电桩运营状态总览</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+          <div class="status-chip" style="flex:1;min-width:100px;background:rgba(0,180,255,0.04);border:1px solid rgba(0,180,255,0.15);">
+            <div class="chip-icon">⚡</div><div class="chip-info"><div class="chip-label">桩群总负荷</div><div class="chip-value" style="color:#b482ff;" id="chargerTotalLoad">100</div><div class="chip-sub">kW</div></div>
+          </div>
+          <div class="status-chip" style="flex:1;min-width:100px;background:rgba(0,180,255,0.04);border:1px solid rgba(0,180,255,0.15);">
+            <div class="chip-icon">🚗</div><div class="chip-info"><div class="chip-label">在充车辆</div><div class="chip-value" style="color:var(--accent);" id="chargerCars">28</div><div class="chip-sub">辆</div></div>
+          </div>
+          <div class="status-chip" style="flex:1;min-width:100px;background:rgba(0,180,255,0.04);border:1px solid rgba(0,180,255,0.15);">
+            <div class="chip-icon">⏳</div><div class="chip-info"><div class="chip-label">平均剩余时长</div><div class="chip-value" style="color:var(--accent2);" id="chargerAvgTime">42</div><div class="chip-sub">分钟</div></div>
+          </div>
+        </div>
+        <div class="panel-title" style="font-size:11px;">🔒 运营车辆锁定 (不可切)</div>
+        <table class="prio-table">
+          <thead><tr><th>车辆类型</th><th>数量</th><th>当前功率</th><th>优先级</th></tr></thead>
+          <tbody>
+            <tr><td>🚌 公交充电</td><td>8辆</td><td>32 kW</td><td><span class="prio-badge locked">🔒 锁定</span></td></tr>
+            <tr><td>🧹 环卫车辆</td><td>3辆</td><td>12 kW</td><td><span class="prio-badge locked">🔒 锁定</span></td></tr>
+            <tr><td>🚕 社会车辆</td><td>17辆</td><td>56 kW</td><td><span class="prio-badge ok">可调节</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="content-col" style="flex:0.8;">
+      <div class="panel" style="flex:1;">
+        <div class="panel-title">🔌 可降功率余量</div>
+        <div style="text-align:center;font-size:11px;color:var(--text-secondary);margin-bottom:4px;">当前 100kW → 最低安全线 30kW</div>
+        <div id="chartChargerGauge" class="chart-box"></div>
+        <div class="form-section" style="margin-top:6px;">
+          <div class="sec-label">目标功率</div>
+          <div class="range-dual">
+            <span style="color:var(--accent2);">30kW</span>
+            <input type="range" min="30" max="100" value="100" id="chargerPowerSlider" style="background:linear-gradient(90deg,var(--accent2),var(--accent4),var(--accent3));">
+            <span style="color:var(--accent);">100kW</span>
+          </div>
+          <span class="range-val" style="float:right;margin-top:2px;" id="chargerPowerVal">100 kW</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="content-row" style="flex:0 0 auto;">
+    <div class="content-col" style="flex:1;">
+      <div class="panel">
+        <div class="panel-title">🎛️ 充电桩调度指令下发</div>
+        <div class="form-section">
+          <div class="sec-label">选择站点</div>
+          <div class="station-list" id="stationList">
+            <div class="station-card selected" data-station="CP-001"><span class="s-name">CP-001 中心枢纽站</span><span class="s-power">58kW</span><span class="s-cars">12🚗</span></div>
+            <div class="station-card" data-station="CP-002"><span class="s-name">CP-002 东部片区站</span><span class="s-power">42kW</span><span class="s-cars">11🚗</span></div>
+            <div class="station-card" data-station="CP-003"><span class="s-name">CP-003 南部充电站</span><span class="s-power">0kW</span><span class="s-cars">0🚗</span></div>
+          </div>
+        </div>
+        <div class="form-row"><label>充电模式</label><select id="chargerMode"><option selected>有序充电 (默认)</option><option>智能分配</option><option>V2G 放电</option></select></div>
+        <div class="form-row"><label>时段电价</label><select><option selected>峰时 1.2元</option><option>平时 0.8元</option><option>谷时 0.4元</option></select></div>
+        <div class="form-row"><label>有效期</label><select><option selected>30 分钟</option><option>60 分钟</option></select></div>
+        <div class="constraint-warn" id="chargerWarn">⚠️ 公交/环卫车辆已锁定无法调节，仅调节社会车辆(56kW)部分</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="sendDispatch('charger')">⚡ 批量下发</button>
+          <button class="btn btn-outline" onclick="showToast('success','已恢复默认策略')">↺ 恢复默认</button>
+        </div>
+      </div>
+    </div>
+    <div class="content-col" style="flex:1;">
+      <div class="panel">
+        <div class="panel-title">📜 最近指令记录</div>
+        <div class="history-log" id="chargerHistory"></div>
+      </div>
+    </div>
+  </div>`
+};
+
+// ========== History Data ==========
+const histories={
+  solar:[],storage:[],load:[],charger:[]
+};
+function addHistory(type,action,result){
+  const now=new Date();
+  const t=now.toLocaleTimeString('zh-CN',{hour12:false});
+  histories[type].unshift({time:t,user:'张三',action,result});
+  if(histories[type].length>5)histories[type].pop();
+  renderHistory(type);
+}
+function renderHistory(type){
+  const el=document.getElementById(type+'History');
+  if(!el)return;
+  el.innerHTML=histories[type].map(h=>`<div class="history-item"><span class="h-time">${h.time}</span><span class="h-user">${h.user}</span><span class="h-action">${h.action}</span><span class="h-result ok">${h.result}</span></div>`).join('');
+}
+
+// ========== Dispatch Actions ==========
+function sendDispatch(type){
+  let action='',warn='';
+  switch(type){
+    case 'solar':
+      const derate=document.getElementById('solarDerateSlider').value;
+      action=`降额运行至 ${derate}% · 目标267MW · 有效期${document.getElementById('solarValid').value}`;
+      break;
+    case 'storage':
+      const mode=document.querySelector('#storageMode .mode-btn.active').dataset.mode;
+      const freqMode=document.querySelector('#freqMode .mode-btn.active');
+      const freqLabel=freqMode?freqMode.textContent:'';
+      const freqCap=document.querySelector('#freqMode+.form-row input')?document.querySelector('#freqMode+.form-row input').value:'20';
+      if(mode==='plan'){
+        const dir=document.getElementById('storageDir').value;
+        const target=document.getElementById('storageTarget').value;
+        action=`计划${dir} · ${target}MW · SOC目标${document.getElementById('storageSOCTarget').value}% · 调频:${freqLabel} ${freqCap}MW`;
+      }else{
+        action=`紧急功率支撑 · ${document.getElementById('storageEmergDir').value} · 调频:${freqLabel}`;
+      }
+      break;
+    case 'load':
+      if(!document.getElementById('loadNotify').checked){showToast('error','请先勾选「用户知情通知已发送」');return;}
+      const tier=document.querySelector('#loadTiers .tier-chip.active').dataset.tier;
+      const drMode=document.querySelector('#drMode .mode-btn.active');
+      const drLabel=drMode?drMode.textContent:'邀约';
+      const dirVal=document.getElementById('loadDir').value;
+      const peakV=document.getElementById('peakSlider')?document.getElementById('peakSlider').value:'25';
+      action=`DR:${drLabel} · ${['升1℃','升2℃','升3℃','全切'][tier-1]} · ${dirVal} · ${peakV}MW · 补偿¥${document.querySelector('#loadDir+select+input')?document.querySelector('#loadDir+select+input').value:'1.5'}/kWh`;
+      break;
+    case 'charger':
+      const sel=document.querySelector('.station-card.selected');
+      const station=sel?sel.dataset.station:'CP-001';
+      const pwr=document.getElementById('chargerPowerSlider').value;
+      action=`${station} 批量调节至 ${pwr}kW · 有序充电`;
+      break;
+  }
+  addHistory(type,action,'✅ 下发成功');
+  showToast('success','✅ 调度指令已成功下发');
+}
+
+function sendEmergency(type){
+  addHistory(type,'🛑 紧急脱网指令','✅ 已执行');
+  showToast('error','🚨 紧急停机指令已下发！目标功率降至 0MW');
+}
+
+// ========== Type-specific Charts ==========
+function initTypeCharts(type){
+  if(type==='solar')initSolarCharts();
+  else if(type==='storage')initStorageCharts();
+  else if(type==='load')initLoadCharts();
+  else if(type==='charger')initChargerCharts();
+}
+
+function initSolarCharts(){
+  const el=document.getElementById('chartSolarPred');
+  if(!el)return;
+  const c=echarts.init(el);
+  const minutes=Array.from({length:31},(_,i)=>`+${i}min`);
+  const actual=[445,440,435,430,425,420,415,410,405,400,395,390,385,380,375,370,365,360,355,350,345,340,335,330,325,320,315,310,305,300,295];
+  const forecast=[445,448,450,452,455,460,465,470,478,485,492,500,508,515,520,525,530,532,535,538,540,542,545,548,550,548,545,540,535,530,525];
+  c.setOption({
+    tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff',textStyle:{color:'#e0f0ff'}},
+    legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:9},itemWidth:12,itemHeight:8},
+    grid:{left:50,right:20,top:16,bottom:30},
+    xAxis:{type:'category',data:minutes,axisLabel:{color:'#7eb8da',fontSize:8,interval:4}},
+    yAxis:{type:'value',name:'MW',splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da',fontSize:9}},
+    series:[
+      {name:'实测功率',type:'line',smooth:true,data:actual,lineStyle:{color:'#00d4ff',width:2.5},symbol:'none',
+        markLine:{silent:true,symbol:'none',data:actual.map((a,i)=>({xAxis:i,yAxis:a*1.1,label:{show:false},lineStyle:{color:'rgba(255,107,107,0.3)',type:'dashed'}}))}},
+      {name:'辐照预测',type:'line',smooth:true,data:forecast,lineStyle:{color:'#ffaa00',width:2,type:'dashed'},symbol:'none',
+        areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(255,170,0,0.15)'},{offset:1,color:'rgba(255,170,0,0.01)'}]}}},
+      {name:'偏差>10%',type:'bar',data:actual.map((a,i)=>{const d=Math.abs(forecast[i]-a)/a*100;return d>10?d:0;}),
+        barWidth:4,itemStyle:{color:'rgba(255,107,107,0.7)',borderRadius:[2,2,0,0]}}
+    ]
+  });
+}
+
+function initStorageCharts(){
+  const el=document.getElementById('chartStorageBar');
+  if(!el)return;
+  const c=echarts.init(el);
+  const stations=['ES-012','ES-015','ES-018','ES-021','ES-025','ES-028','ES-031','ES-033'];
+  c.setOption({
+    tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+    grid:{left:48,right:20,top:8,bottom:24},
+    xAxis:{type:'category',data:stations,axisLabel:{color:'#7eb8da',fontSize:9}},
+    yAxis:{type:'value',name:'%',max:100,splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da',fontSize:9}},
+    series:[{
+      type:'bar',data:[78,62,91,45,55,83,37,70],
+      barWidth:16,itemStyle:{borderRadius:[4,4,0,0],
+        color:function(p){
+          const v=p.value;
+          if(v>90||v<20)return '#ff6b6b';
+          if(v>80||v<30)return '#ffaa00';
+          return '#00ff88';
+        }
+      },
+      label:{show:true,position:'top',color:'#7eb8da',fontSize:9,formatter:'{c}%'},
+      markLine:{silent:true,symbol:'none',data:[
+        {yAxis:90,lineStyle:{color:'#ff6b6b50',type:'dashed',width:1},label:{formatter:'高限90%',color:'#ff6b6b',fontSize:8}},
+        {yAxis:10,lineStyle:{color:'#ffaa0050',type:'dashed',width:1},label:{formatter:'低限10%',color:'#ffaa00',fontSize:8}}
+      ]}
+    }]
+  });
+}
+
+function initLoadCharts(){
+  const el=document.getElementById('chartLoadDist');
+  if(!el)return;
+  const c=echarts.init(el);
+  c.setOption({
+    tooltip:{trigger:'item',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+    series:[{
+      type:'pie',radius:['55%','78%'],center:['50%','50%'],
+      data:[
+        {value:15,name:'已中断',itemStyle:{color:'#ff6b6b'}},
+        {value:15,name:'可再切',itemStyle:{color:'#ffaa00'}},
+        {value:70,name:'正常运行',itemStyle:{color:'#00ff88'}},
+      ],
+      label:{formatter:'{b}\n{d}%',color:'#7eb8da',fontSize:9},
+      emphasis:{label:{fontWeight:'bold',fontSize:12}}
+    }]
+  });
+}
+
+function initChargerCharts(){
+  const el=document.getElementById('chartChargerGauge');
+  if(!el)return;
+  const c=echarts.init(el);
+  c.setOption({
+    series:[{
+      type:'gauge',center:['50%','60%'],radius:'75%',
+      startAngle:210,endAngle:-30,min:0,max:100,
+      axisLine:{lineStyle:{width:18,color:[[0.3,'#00ff88'],[0.5,'#ffaa00'],[0.7,'#ff6b6b'],[1,'#cc0000']]}},
+      pointer:{length:'65%',width:5,itemStyle:{color:'#e0f0ff'}},
+      axisTick:{distance:-14,length:5,lineStyle:{color:'#e0f0ff',width:1.5}},
+      splitLine:{distance:-20,length:10,lineStyle:{color:'#e0f0ff',width:2.5}},
+      axisLabel:{color:'#7eb8da',fontSize:9,distance:25},
+      detail:{valueAnimation:true,formatter:'{value}kW',color:'#e0f0ff',fontSize:20,fontWeight:'bold',offsetCenter:[0,'75%']},
+      data:[{value:100,name:'当前功率'}]
+    }]
+  });
+}
+
+// ========== Type-specific Events ==========
+function attachTypeEvents(type){
+  if(type==='solar'){
+    document.querySelectorAll('#solarMode .mode-btn').forEach(b=>{
+      b.addEventListener('click',function(){
+        document.querySelectorAll('#solarMode .mode-btn').forEach(x=>x.classList.remove('active'));
+        this.classList.add('active');
+        const mode=this.dataset.mode;
+        document.getElementById('solarDeratePanel').style.display=mode==='derate'?'block':'none';
+        document.getElementById('solarWarn').classList.toggle('show',mode==='disconnect');
+      });
+    });
+    const slider=document.getElementById('solarDerateSlider');
+    if(slider){
+      slider.addEventListener('input',function(){
+        document.getElementById('solarDerateVal').textContent=this.value+'%';
+        document.getElementById('solarTarget').value=Math.round(445*this.value/100);
+      });
+    }
+  }
+  if(type==='storage'){
+    document.querySelectorAll('#storageMode .mode-btn').forEach(b=>{
+      b.addEventListener('click',function(){
+        document.querySelectorAll('#storageMode .mode-btn').forEach(x=>x.classList.remove('active'));
+        this.classList.add('active');
+        const m=this.dataset.mode;
+        document.getElementById('storagePlanPanel').style.display=m==='plan'?'block':'none';
+        document.getElementById('storageEmergPanel').style.display=m==='emergency'?'block':'none';
+        document.getElementById('storageWarn').classList.toggle('show',m!=='emergency');
+      });
+    });
+    // Frequency mode toggle
+    document.querySelectorAll('#freqMode .mode-btn').forEach(b=>{
+      b.addEventListener('click',function(){
+        document.querySelectorAll('#freqMode .mode-btn').forEach(x=>x.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+    const socSlider=document.getElementById('storageSOCTarget');
+    if(socSlider){
+      socSlider.addEventListener('input',function(){
+        document.getElementById('storageSOCVal').textContent=this.value+'%';
+      });
+    }
+  }
+  if(type==='load'){
+    // DR mode toggle
+    document.querySelectorAll('#drMode .mode-btn').forEach(b=>{
+      b.addEventListener('click',function(){
+        document.querySelectorAll('#drMode .mode-btn').forEach(x=>x.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+    // Tier selector
+    document.querySelectorAll('#loadTiers .tier-chip:not(.blocked)').forEach(c=>{
+      c.addEventListener('click',function(){
+        document.querySelectorAll('#loadTiers .tier-chip').forEach(x=>x.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+    // Peak shaving slider
+    const peakSlider=document.getElementById('peakSlider');
+    if(peakSlider){
+      peakSlider.addEventListener('input',function(){
+        document.getElementById('peakVal').textContent=this.value+' MW';
+      });
+    }
+    // Direction change - toggle peak fill
+    const loadDir=document.getElementById('loadDir');
+    if(loadDir){
+      loadDir.addEventListener('change',function(){
+        const row=document.getElementById('peakRow');
+        if(row){
+          const label=row.querySelector('label');
+          if(label)label.textContent=this.value==='削峰 (降载)'?'削峰目标':'填谷目标';
+        }
+      });
+    }
+    const notify=document.getElementById('loadNotify');
+    if(notify){
+      notify.addEventListener('change',function(){
+        document.getElementById('loadSendBtn').disabled=!this.checked;
+      });
+    }
+  }
+  if(type==='charger'){
+    document.querySelectorAll('.station-card').forEach(card=>{
+      card.addEventListener('click',function(){
+        document.querySelectorAll('.station-card').forEach(x=>x.classList.remove('selected'));
+        this.classList.add('selected');
+      });
+    });
+    const pSlider=document.getElementById('chargerPowerSlider');
+    if(pSlider){
+      pSlider.addEventListener('input',function(){
+        document.getElementById('chargerPowerVal').textContent=this.value+' kW';
+      });
+    }
+  }
+}
+
+// ========== Bottom Charts ==========
+function renderBottomCharts(type){
+  if(bottomChart1){bottomChart1.dispose();bottomChart1=null;}
+  if(bottomChart2){bottomChart2.dispose();bottomChart2=null;}
+
+  bottomChart1=echarts.init(document.getElementById('bottomChart1'));
+  bottomChart2=echarts.init(document.getElementById('bottomChart2'));
+
+  const mins=Array.from({length:30},(_,i)=>`-${30-i}min`);
+  bottomChart1.setOption({
+    title:{text:'近30min 功率趋势',textStyle:{color:'#e0f0ff',fontSize:11},left:'center',top:4},
+    tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+    grid:{left:42,right:12,top:32,bottom:12},
+    xAxis:{type:'category',data:mins,axisLabel:{color:'#7eb8da',fontSize:7},axisLine:{lineStyle:{color:'rgba(0,180,255,0.2)'}}},
+    yAxis:{type:'value',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+    series:[{type:'line',data:Array.from({length:30},()=>Math.round(300+Math.random()*200)),smooth:true,
+      lineStyle:{color:type==='solar'?'#ffaa00':type==='storage'?'#00ff88':type==='load'?'#ff8264':'#b482ff',width:1.5},
+      areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,212,255,0.2)'},{offset:1,color:'rgba(0,212,255,0.01)'}]}},symbol:'none'}]
+  });
+
+  const futureMins=Array.from({length:30},(_,i)=>`+${i+1}min`);
+  bottomChart2.setOption({
+    title:{text:'未来30min 预测曲线',textStyle:{color:'#e0f0ff',fontSize:11},left:'center',top:4},
+    tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+    grid:{left:42,right:12,top:32,bottom:12},
+    xAxis:{type:'category',data:futureMins,axisLabel:{color:'#7eb8da',fontSize:7}},
+    yAxis:{type:'value',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+    series:[{type:'line',data:Array.from({length:30},(_,i)=>Math.round(350+i*2+Math.sin(i/4)*15)),smooth:true,
+      lineStyle:{color:'#ffaa00',width:1.5,type:'dashed'},symbol:'none'}]
+  });
+}
+
+// ========== Init ==========
+document.addEventListener('DOMContentLoaded',()=>{
+  switchType('solar');
+  setTimeout(()=>{
+    if(currentType!=='solar'){switchType(currentType);}
+  },100);
+});
+
+// Resize
+window.addEventListener('resize',()=>{
+  [bottomChart1,bottomChart2].forEach(c=>c&&c.resize());
+  ['chartSolarPred','chartStorageBar','chartLoadDist','chartChargerGauge'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){const instance=echarts.getInstanceByDom(el);if(instance)instance.resize();}
+  });
+});
+</script>
+</body>
+</html>

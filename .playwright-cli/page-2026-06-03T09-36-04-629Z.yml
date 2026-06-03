@@ -1,0 +1,190 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: V
+      - generic [ref=e6]:
+        - generic [ref=e7]: 告警中心
+        - generic [ref=e8]: VPP数字平台 / 告警中心
+    - generic [ref=e9]:
+      - link "🎛️ 实时调度" [ref=e10] [cursor=pointer]:
+        - /url: dispatch-detail.html
+      - generic [ref=e11]: 17:36:04
+  - generic [ref=e12]:
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: "3"
+        - generic [ref=e16]: 🔴 严重告警
+        - generic [ref=e17]: 待确认 · 需立即处理
+      - generic [ref=e18]:
+        - generic [ref=e19]: "3"
+        - generic [ref=e20]: 🟡 警告告警
+        - generic [ref=e21]: 待确认
+      - generic [ref=e22]:
+        - generic [ref=e23]: "6"
+        - generic [ref=e24]: ✅ 已确认
+        - generic [ref=e25]: 今日累计
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]: "级别:"
+          - generic [ref=e34] [cursor=pointer]: 全部
+          - generic [ref=e35] [cursor=pointer]: 🔴 严重
+          - generic [ref=e36] [cursor=pointer]: 🟡 警告
+          - generic [ref=e37] [cursor=pointer]: 🔵 信息
+        - generic [ref=e38]:
+          - generic [ref=e39]: "状态:"
+          - generic [ref=e40] [cursor=pointer]: 全部
+          - generic [ref=e41] [cursor=pointer]: 待确认
+          - generic [ref=e42] [cursor=pointer]: 已确认
+        - textbox "🔍 搜索告警..." [ref=e44]
+        - button "✅ 批量确认" [ref=e45] [cursor=pointer]
+        - button "📋 全部确认" [ref=e46] [cursor=pointer]
+      - generic [ref=e47]:
+        - generic [ref=e48]:
+          - text: 🚨 告警列表
+          - generic [ref=e49]: 共 12 条
+        - generic [ref=e50]:
+          - generic [ref=e51] [cursor=pointer]:
+            - generic [ref=e52]: ⚠️
+            - generic [ref=e53]:
+              - generic [ref=e54]: 光伏电站功率异常下降
+              - generic [ref=e55]: "#PS-028 输出功率从 185MW 骤降至 28MW，降幅达 84.9%，疑似逆变器故障，需立即排查。"
+              - generic [ref=e56]:
+                - generic [ref=e57]: 📌 PS-028
+                - generic [ref=e58]: 🕐 14:32:10
+                - generic [ref=e59]: 🏷️ 光伏
+            - generic [ref=e60]:
+              - button "确认" [ref=e61]
+              - button "详情" [ref=e62]
+          - generic [ref=e63] [cursor=pointer]:
+            - generic [ref=e64]: ⚠️
+            - generic [ref=e65]:
+              - generic [ref=e66]: 储能站 SOC 过低告警
+              - generic [ref=e67]: "#ES-012 荷电状态降至 28%，低于30%安全阈值，需立即调整充放电策略，避免深度放电损坏电池组。"
+              - generic [ref=e68]:
+                - generic [ref=e69]: 📌 ES-012
+                - generic [ref=e70]: 🕐 14:15:33
+                - generic [ref=e71]: 🏷️ 储能
+            - generic [ref=e72]:
+              - button "确认" [ref=e73]
+              - button "详情" [ref=e74]
+          - generic [ref=e75] [cursor=pointer]:
+            - generic [ref=e76]: ⚠️
+            - generic [ref=e77]:
+              - generic [ref=e78]: 调度指令超时未确认
+              - generic [ref=e79]: "调度指令 #D20260602-0035（目标 35MW）已超时 15 分钟仍未确认，可能影响电网调度计划执行。"
+              - generic [ref=e80]:
+                - generic [ref=e81]: 📌 WF-003
+                - generic [ref=e82]: 🕐 13:45:50
+                - generic [ref=e83]: 🏷️ 调度
+            - generic [ref=e84]:
+              - button "确认" [ref=e85]
+              - button "详情" [ref=e86]
+          - generic [ref=e87] [cursor=pointer]:
+            - generic [ref=e88]: ⚡
+            - generic [ref=e89]:
+              - generic [ref=e90]: 风电场出力波动接近阈值
+              - generic [ref=e91]: "#WF-003 近5分钟出力波动±8%，接近±10%联动触发阈值，系统已启动预判机制。"
+              - generic [ref=e92]:
+                - generic [ref=e93]: 📌 WF-003
+                - generic [ref=e94]: 🕐 14:28:05
+                - generic [ref=e95]: 🏷️ 风电
+            - generic [ref=e96]:
+              - button "确认" [ref=e97]
+              - button "详情" [ref=e98]
+          - generic [ref=e99] [cursor=pointer]:
+            - generic [ref=e100]: ⚡
+            - generic [ref=e101]:
+              - generic [ref=e102]:
+                - text: 逆变器效率下降
+                - generic [ref=e103]: ✓ 已确认
+              - generic [ref=e104]: "#INV-047 当前效率 91%，低于95%告警线，建议安排巡检维护。"
+              - generic [ref=e105]:
+                - generic [ref=e106]: 📌 PS-028
+                - generic [ref=e107]: 🕐 14:02:18
+                - generic [ref=e108]: 🏷️ 光伏
+            - button "详情" [ref=e110]
+          - generic [ref=e111] [cursor=pointer]:
+            - generic [ref=e112]: ⚡
+            - generic [ref=e113]:
+              - generic [ref=e114]: 通信延迟异常
+              - generic [ref=e115]: "风电场 #WF-011 通信延迟 850ms，超过500ms正常阈值，可能影响实时调度响应。"
+              - generic [ref=e116]:
+                - generic [ref=e117]: 📌 WF-011
+                - generic [ref=e118]: 🕐 13:30:22
+                - generic [ref=e119]: 🏷️ 通信
+            - generic [ref=e120]:
+              - button "确认" [ref=e121]
+              - button "详情" [ref=e122]
+          - generic [ref=e123] [cursor=pointer]:
+            - generic [ref=e124]: ⚡
+            - generic [ref=e125]:
+              - generic [ref=e126]:
+                - text: 并网点电压越限
+                - generic [ref=e127]: ✓ 已确认
+              - generic [ref=e128]: "PCC节点 #PCC-08 电压 238kV，超出 220±5% 范围，需调节无功补偿。"
+              - generic [ref=e129]:
+                - generic [ref=e130]: 📌 PCC-08
+                - generic [ref=e131]: 🕐 12:55:10
+                - generic [ref=e132]: 🏷️ 电网
+            - button "详情" [ref=e134]
+          - generic [ref=e135] [cursor=pointer]:
+            - generic [ref=e136]: ⚡
+            - generic [ref=e137]:
+              - generic [ref=e138]: 储能充放电切换频繁
+              - generic [ref=e139]: "#ES-018 近1小时充放电切换达8次，超过正常频率（≤4次/h），检查调度策略。"
+              - generic [ref=e140]:
+                - generic [ref=e141]: 📌 ES-018
+                - generic [ref=e142]: 🕐 12:20:45
+                - generic [ref=e143]: 🏷️ 储能
+            - generic [ref=e144]:
+              - button "确认" [ref=e145]
+              - button "详情" [ref=e146]
+          - generic [ref=e147] [cursor=pointer]:
+            - generic [ref=e148]: ℹ️
+            - generic [ref=e149]:
+              - generic [ref=e150]:
+                - text: 光伏预测偏差提醒
+                - generic [ref=e151]: ✓ 已确认
+              - generic [ref=e152]: "#PS-031 今日实际出力 vs 预测偏差 12.5%，超短期预测模型建议重新校准。"
+              - generic [ref=e153]:
+                - generic [ref=e154]: 📌 PS-031
+                - generic [ref=e155]: 🕐 11:45:30
+                - generic [ref=e156]: 🏷️ 光伏
+            - button "详情" [ref=e158]
+          - generic [ref=e159] [cursor=pointer]:
+            - generic [ref=e160]: ℹ️
+            - generic [ref=e161]:
+              - generic [ref=e162]:
+                - text: 系统自动调节记录
+                - generic [ref=e163]: ✓ 已确认
+              - generic [ref=e164]: "系统自动完成±10%联动调节：储能 #ES-015 从 40MW → 52MW，补偿风电下降。"
+              - generic [ref=e165]:
+                - generic [ref=e166]: 📌 ES-015
+                - generic [ref=e167]: 🕐 11:20:15
+                - generic [ref=e168]: 🏷️ 系统
+            - button "详情" [ref=e170]
+          - generic [ref=e171] [cursor=pointer]:
+            - generic [ref=e172]: ℹ️
+            - generic [ref=e173]:
+              - generic [ref=e174]:
+                - text: 设备固件升级提醒
+                - generic [ref=e175]: ✓ 已确认
+              - generic [ref=e176]: "逆变器 #INV-052 固件版本 v2.3.1 存在已知漏洞，建议升级至 v2.4.0。"
+              - generic [ref=e177]:
+                - generic [ref=e178]: 📌 INV-052
+                - generic [ref=e179]: 🕐 10:55:00
+                - generic [ref=e180]: 🏷️ 设备
+            - button "详情" [ref=e182]
+          - generic [ref=e183] [cursor=pointer]:
+            - generic [ref=e184]: ℹ️
+            - generic [ref=e185]:
+              - generic [ref=e186]:
+                - text: 气象预警联动
+                - generic [ref=e187]: ✓ 已确认
+              - generic [ref=e188]: 国家气象台发布大风蓝色预警，预计未来6小时风机出力将提升15%-20%。
+              - generic [ref=e189]:
+                - generic [ref=e190]: 📌 WF-ALL
+                - generic [ref=e191]: 🕐 10:30:00
+                - generic [ref=e192]: 🏷️ 气象
+            - button "详情" [ref=e194]

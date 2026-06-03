@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>VPP 设计图表</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+body{background:#0a0e27;font-family:sans-serif;padding:20px;color:#e0f0ff;}
+h2{color:#00d4ff;border-left:3px solid #00d4ff;padding-left:10px;margin:40px 0 10px;}
+.diagram{background:#fff;border-radius:8px;padding:20px;margin:10px 0 40px;overflow:auto;}
+</style>
+</head>
+<body>
+<h1>VPP 虚拟电厂运营管理平台 — 设计图表</h1>
+<p style="color:#7eb8da;">右键点击任意图表 → 「图片另存为」保存为 PNG</p>
+
+<h2>1. 系统架构图</h2>
+<div class="diagram"><pre class="mermaid">
+%%{init:{'theme':'default','themeVariables':{}}%%
+graph TB
+    subgraph 应用层["④ 应用层 — 电网 &amp; 市场对接"]
+        EMS["电网 EMS 系统"]; TP["电力交易平台"]; WEATHER["第三方气象平台"]
+    end
+    subgraph 平台层["③ 平台层 — VPP 核心平台"]
+        RESM["资源聚合与接入管理"]; SCADA["数据采集与监控"]; PRED["预测与优化调度"]
+        CTRL["控制与指令执行"]; TRADE["市场交易与结算"]; OPS["运营管理"]
+    end
+    subgraph 通信层["② 通信层 — 协议 &amp; 网络"]
+        IEC104["IEC 60870-5-104"]; MQTT["MQTT"]; MODBUS["Modbus TCP"]; DLT645["DL/T 645"]
+    end
+    subgraph 资源层["① 资源层 — 分布式能源"]
+        PV["光伏电站"]; WIND["风电场"]; STORAGE["储能站"]; LOAD["可控负荷"]; EV["充电桩群"]
+    end
+    PV --- IEC104; WIND --- IEC104; STORAGE --- MQTT; LOAD --- MODBUS; EV --- DLT645
+    IEC104 --- SCADA; MQTT --- SCADA; MODBUS --- SCADA; DLT645 --- SCADA
+    CTRL --> IEC104; CTRL --> MQTT
+    TRADE --- TP; SCADA --- EMS; PRED --- WEATHER
+</pre></div>
+
+<h2>2. VPP 业务闭环流程图</h2>
+<div class="diagram"><pre class="mermaid">
+graph LR
+    A1["① 资源接入<br/>档案/协议/检测"] --> A2["② 能力评估<br/>可调容量/响应速度"]
+    A2 --> A3["③ 市场参与<br/>日前申报/实时竞价/DR"]
+    A3 --> A4["④ 调度执行<br/>指令下发/闭环控制"]
+    A4 --> A5["⑤ 结算归档<br/>收益计算/对账/发票"]
+    A5 -.->|考核反馈| A2
+</pre></div>
+
+<h2>3. 页面导航流程图</h2>
+<div class="diagram"><pre class="mermaid">
+graph TD
+    LOGIN["登录页"] --> INDEX["首页导航"]
+    INDEX --> DASH["调度大屏"]
+    INDEX --> OVERVIEW["实时调度总览"]
+    INDEX --> DETAIL["实时调度工作站"]
+    INDEX --> MONITOR["资源监控"]
+    INDEX --> ALARM["告警中心"]
+    INDEX --> SETTLE["结算管理"]
+    INDEX --> DR["需求响应管理"]
+    INDEX --> MARKET["电力市场行情"]
+    INDEX --> VPP["VPP 运营总览"]
+    DASH --> DETAIL; OVERVIEW --> DETAIL
+    DR --- SETTLE; MARKET --- SETTLE
+</pre></div>
+
+<h2>4. 业务思维导图</h2>
+<div class="diagram"><pre class="mermaid">
+mindmap
+  root((VPP 虚拟电厂))
+    资源管理
+      资源档案
+      批量导入导出
+      协议对接
+      双状态模型
+    实时监控
+      数据采集
+      GIS 地图
+      告警管理
+    预测与优化
+      功率预测
+      优化调度
+    控制执行
+      指令下发
+      DR模式
+      调频模式
+    市场交易
+      电能量
+      辅助服务
+      需求响应
+    结算管理
+      收益计算
+      状态机
+    运营管理
+      用户权限
+      运维工单
+      审计日志
+</pre></div>
+
+<h2>5. 资源运营状态机</h2>
+<div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --> ENABLED : 创建资源
+    ENABLED --> DISABLED : 停用
+    ENABLED --> MAINTENANCE : 维护
+    DISABLED --> ENABLED : 启用
+    MAINTENANCE --> ENABLED : 启用
+    DISABLED --> [*] : 删除
+</pre></div>
+
+<h2>6. 资源设备状态机</h2>
+<div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --> ONLINE : 采集上报
+    ONLINE --> OFFLINE : 心跳丢失 3 次
+    OFFLINE --> ONLINE : 恢复通信
+    OFFLINE --> FAULT : 上报故障
+    FAULT --> ONLINE : 故障恢复
+    ONLINE --> FAULT : 上报故障
+</pre></div>
+
+<h2>7. 结算状态机</h2>
+<div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --> draft : 创建结算单
+    draft --> confirmed : 确认
+    draft --> disputed : 标记争议
+    confirmed --> settled : 执行结算
+    confirmed --> disputed : 标记争议
+    settled --> done : 归档
+    disputed --> draft : 返回草稿
+</pre></div>
+
+<h2>8. 日前调度计划状态机</h2>
+<div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --> draft : 创建计划
+    draft --> pending : 提交
+    pending --> issued : 下发
+    issued --> running : 计划日开始
+    running --> completed : 计划日结束
+    pending --> [*] : 删除
+</pre></div>
+
+<h2>9. DR 事件状态机</h2>
+<div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --> pending : DR事件发布
+    pending --> executing : 响应开始
+    executing --> completed : 响应结束
+    completed --> settled : 结算完成
+</pre></div>
+
+<h2>10. 数据流图</h2>
+<div class="diagram"><pre class="mermaid">
+graph TD
+    subgraph 数据采集["数据采集层"]
+        PV_DATA["光伏 逆变器"]; STORAGE_DATA["储能 BMS"]; METER["智能电表"]
+    end
+    subgraph 边缘处理["边缘网关"]
+        GW1["协议转换"]; GW2["本地缓存/断网自治"]
+    end
+    subgraph 平台处理["平台层"]
+        COLLECT["数据采集服务 ≤5s"]
+        TSDB[("时序数据库")]; RDB[("关系数据库")]
+    end
+    subgraph 业务应用["业务应用"]
+        DASHBOARD["调度大屏"]; DISPATCH["指令下发"]
+        DRAPP["需求响应"]; SETTLEMENT["结算"]
+    end
+    PV_DATA --> GW1; STORAGE_DATA --> GW1; METER --> GW1
+    GW1 --> COLLECT; COLLECT --> TSDB
+    TSDB --> DASHBOARD; TSDB --> DISPATCH; TSDB --> DRAPP
+    RDB --> SETTLEMENT; DISPATCH --> GW2
+</pre></div>
+
+<script>mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:'#00d4ff',primaryTextColor:'#333',primaryBorderColor:'#00d4ff',lineColor:'#666',secondaryColor:'#f0f8ff',tertiaryColor:'#fff'}});</script>
+</body>
+</html>

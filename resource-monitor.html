@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>资源监控 - VPP 虚拟电厂</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg-deep:#0a0e27;--bg-panel:rgba(6,30,60,0.75);
+  --border-glow:rgba(0,200,255,0.35);--accent:#00d4ff;
+  --accent2:#00ff88;--accent3:#ff6b6b;--accent4:#ffaa00;
+  --text-primary:#e0f0ff;--text-secondary:#7eb8da;
+  --glow-soft:0 0 20px rgba(0,180,255,0.15);
+  --glow-strong:0 0 30px rgba(0,200,255,0.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg-deep);color:var(--text-primary);
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+  height:100vh;overflow-x:hidden;overflow-y:auto;
+}
+body::-webkit-scrollbar{width:6px;}
+body::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+body::-webkit-scrollbar-track{background:rgba(0,0,0,0.3);}
+
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+
+.container{
+  position:relative;z-index:1;max-width:1440px;margin:0 auto;
+  padding:16px 20px;
+}
+
+/* Header */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:12px;border-bottom:1px solid rgba(0,200,255,0.2);
+  margin-bottom:16px;
+}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-logo{
+  width:34px;height:34px;background:linear-gradient(135deg,var(--accent),#0066ff);
+  border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:bold;color:#fff;box-shadow:var(--glow-strong);
+}
+.header-title{font-size:18px;font-weight:700;letter-spacing:2px;}
+.header-breadcrumb{font-size:12px;color:var(--text-secondary);}
+.header-breadcrumb span{color:var(--accent);}
+.header-right .btn{
+  padding:7px 18px;border:1px solid var(--accent);border-radius:4px;
+  background:rgba(0,200,255,0.1);color:var(--accent);
+  font-size:12px;cursor:pointer;transition:all .3s;
+}
+.header-right .btn:hover{background:rgba(0,200,255,0.25);box-shadow:var(--glow-strong);}
+
+/* Summary Cards */
+.summary-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;
+}
+.summary-card{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:16px 18px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);overflow:hidden;
+  transition:all .3s;
+}
+.summary-card:hover{box-shadow:var(--glow-strong);transform:translateY(-2px);}
+.summary-card::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+}
+.summary-card.card-solar::after{background:linear-gradient(90deg,transparent,var(--accent4),transparent);}
+.summary-card.card-wind::after{background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.summary-card.card-storage::after{background:linear-gradient(90deg,transparent,var(--accent2),transparent);}
+.summary-card.card-total::after{background:linear-gradient(90deg,transparent,#fff,transparent);}
+.summary-card .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.summary-card .card-icon{font-size:24px;}
+.summary-card .card-status{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid;}
+.summary-card .card-status.online{border-color:var(--accent2);color:var(--accent2);background:rgba(0,255,136,0.1);}
+.summary-card .card-status.warn{border-color:var(--accent4);color:var(--accent4);background:rgba(255,170,0,0.1);}
+.summary-card .card-value{font-size:28px;font-weight:700;font-family:'Consolas','Monaco',monospace;margin-bottom:4px;}
+.summary-card .card-label{font-size:11px;color:var(--text-secondary);}
+.summary-card .card-sub{font-size:10px;color:var(--text-secondary);margin-top:4px;}
+.summary-card .card-sub .up{color:var(--accent2);}
+.summary-card .card-sub .down{color:var(--accent3);}
+
+/* Main Grid */
+.main-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;
+}
+.panel{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:14px 16px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+}
+.panel::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.panel-title{
+  font-size:14px;font-weight:700;margin-bottom:10px;
+  padding-left:10px;border-left:3px solid var(--accent);
+  display:flex;align-items:center;gap:8px;
+}
+.chart-box{width:100%;height:260px;}
+
+/* Resource Table */
+.table-panel{margin-bottom:16px;}
+.table-wrapper{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{
+  background:rgba(0,180,255,0.08);padding:10px 14px;text-align:left;
+  color:var(--accent);font-weight:600;border-bottom:1px solid var(--border-glow);
+  white-space:nowrap;
+}
+tbody td{
+  padding:10px 14px;border-bottom:1px solid rgba(0,180,255,0.08);
+  color:var(--text-secondary);
+}
+tbody tr{transition:all .3s;}
+tbody tr:hover{background:rgba(0,200,255,0.06);}
+tbody tr:hover td{color:var(--text-primary);}
+.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;}
+.status-dot.green{background:var(--accent2);box-shadow:0 0 6px var(--accent2);}
+.status-dot.yellow{background:var(--accent4);box-shadow:0 0 6px var(--accent4);}
+.status-dot.red{background:var(--accent3);box-shadow:0 0 6px var(--accent3);}
+.tag{
+  display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;
+  border:1px solid;white-space:nowrap;
+}
+.tag.green{border-color:var(--accent2);color:var(--accent2);background:rgba(0,255,136,0.08);}
+.tag.blue{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.08);}
+.tag.orange{border-color:var(--accent4);color:var(--accent4);background:rgba(255,170,0,0.08);}
+.tag.red{border-color:var(--accent3);color:var(--accent3);background:rgba(255,107,107,0.08);}
+.progress-bar{
+  height:5px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden;
+}
+.progress-bar .fill{border-radius:3px;height:100%;transition:width .6s;}
+.progress-bar .fill.green{background:linear-gradient(90deg,var(--accent2),#00cc66);}
+.progress-bar .fill.blue{background:linear-gradient(90deg,var(--accent),#0066ff);}
+.progress-bar .fill.orange{background:linear-gradient(90deg,var(--accent4),#cc8800);}
+
+@media(max-width:1200px){
+  .summary-grid{grid-template-columns:repeat(2,1fr);}
+  .main-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">V</div>
+      <div>
+        <div class="header-title">资源实时监控</div>
+        <div class="header-breadcrumb">VPP数字平台 / <span>资源监控</span></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <a href="dispatch-detail.html" style="padding:4px 12px;background:linear-gradient(135deg,var(--accent4),var(--accent3));color:#fff;border-radius:4px;text-decoration:none;font-size:11px;font-weight:600;margin-right:8px;">🎛️ 实时调度</a>
+      <span style="font-size:12px;color:var(--text-secondary);margin-right:8px;" id="liveTime">--</span>
+      <button class="btn" onclick="location.reload()">🔄 刷新数据</button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="summary-grid">
+    <div class="summary-card card-solar">
+      <div class="card-header">
+        <div class="card-icon">☀️</div>
+        <div class="card-status online">运行中</div>
+      </div>
+      <div class="card-value" style="color:var(--accent4);" id="solarPower">1,250</div>
+      <div class="card-label">光伏总功率 (MW)</div>
+      <div class="card-sub"><span class="up">▲ 12.5%</span> vs 昨日同期</div>
+    </div>
+    <div class="summary-card card-wind">
+      <div class="card-header">
+        <div class="card-icon">🌬️</div>
+        <div class="card-status online">运行中</div>
+      </div>
+      <div class="card-value" style="color:var(--accent);" id="windPower">980</div>
+      <div class="card-label">风电总功率 (MW)</div>
+      <div class="card-sub"><span class="down">▼ 3.2%</span> vs 昨日同期</div>
+    </div>
+    <div class="summary-card card-storage">
+      <div class="card-header">
+        <div class="card-icon">🔋</div>
+        <div class="card-status online">运行中</div>
+      </div>
+      <div class="card-value" style="color:var(--accent2);" id="storagePower">110</div>
+      <div class="card-label">储能总功率 (MW)</div>
+      <div class="card-sub"><span class="up">▲ 8.7%</span> 可用容量</div>
+    </div>
+    <div class="summary-card card-total">
+      <div class="card-header">
+        <div class="card-icon">⚡</div>
+        <div class="card-status online">在线</div>
+      </div>
+      <div class="card-value" style="color:#e0f0ff;" id="totalPower">2,650</div>
+      <div class="card-label">当前总出力 (MW)</div>
+      <div class="card-sub">电网频率 <span style="color:var(--accent2);">50.02 Hz</span></div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="main-grid">
+    <div class="panel">
+      <div class="panel-title">📊 各资源实时功率对比</div>
+      <div id="chartBar" class="chart-box"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">📈 24h 光伏发电曲线</div>
+      <div id="chartSolar" class="chart-box"></div>
+    </div>
+  </div>
+
+  <!-- Gauge Row -->
+  <div class="main-grid">
+    <div class="panel">
+      <div class="panel-title">🎯 资源计划完成率仪表盘</div>
+      <div id="chartGauge" class="chart-box"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">🌡️ 关键指标实时监测</div>
+      <div id="chartRadar" class="chart-box"></div>
+    </div>
+  </div>
+
+  <!-- Resource Table -->
+  <div class="panel table-panel">
+    <div class="panel-title">📋 资源设备清单 <span style="font-size:10px;color:var(--text-secondary);font-weight:normal;">共 <span id="resTotalCount">8</span> 个资源 · 在线 <span id="resOnlineCount">7</span></span></div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>资源ID</th><th>名称</th><th>类型</th><th>额定容量(MW)</th><th>实时出力(MW)</th><th>负载率</th><th>状态</th><th>效率</th><th>更新时间</th>
+          </tr>
+        </thead>
+        <tbody id="resourceTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== Background ==========
+const canvas=document.getElementById('bgCanvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+
+const particles=[];
+class P{constructor(){this.reset();}reset(){this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.r=Math.random()*1.5+0.5;this.vx=(Math.random()-0.5)*0.3;this.vy=(Math.random()-0.5)*0.3;this.a=Math.random()*0.4+0.15;}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height)this.reset();}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,200,255,${this.a})`;ctx.fill();}}
+for(let i=0;i<60;i++)particles.push(new P());
+function animateBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='rgba(0,180,255,0.03)';ctx.lineWidth=0.5;
+  for(let x=60;x<canvas.width;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=60;y<canvas.height;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// Clock
+function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});}
+updateTime();setInterval(updateTime,1000);
+
+// ========== Bar Chart ==========
+const chartBar=echarts.init(document.getElementById('chartBar'));
+chartBar.setOption({
+  tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+  grid:{left:60,right:20,top:10,bottom:30},
+  xAxis:{type:'category',data:['光伏A','光伏D','光伏G','光伏J','风电B','风电E','风电H','储能C','储能F','储能I'],axisLabel:{rotate:30,color:'#7eb8da',fontSize:10}},
+  yAxis:{type:'value',name:'MW',splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da'}},
+  series:[{
+    type:'bar',barWidth:18,data:[520,440,350,410,380,290,260,150,120,95],
+    itemStyle:{borderRadius:[4,4,0,0],color:params=>(['#ffaa00','#ffaa00','#ffaa00','#ffaa00','#00d4ff','#00d4ff','#00d4ff','#00ff88','#00ff88','#00ff88'][params.dataIndex])},
+    label:{show:true,position:'top',color:'#7eb8da',fontSize:10}
+  }]
+});
+
+// ========== Solar Curve ==========
+const chartSolar=echarts.init(document.getElementById('chartSolar'));
+chartSolar.setOption({
+  tooltip:{trigger:'axis'},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10}},
+  grid:{left:45,right:20,top:10,bottom:30},
+  xAxis:{type:'category',data:Array.from({length:24},(_,i)=>`${i}:00`),axisLabel:{color:'#7eb8da',fontSize:9}},
+  yAxis:{type:'value',name:'MW',splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da'}},
+  series:[
+    {name:'今日',type:'line',smooth:true,data:[0,0,0,0,0,2,48,156,320,445,520,560,540,500,480,420,310,180,60,10,0,0,0,0],lineStyle:{color:'#ffaa00',width:2},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(255,170,0,0.3)'},{offset:1,color:'rgba(255,170,0,0.02)'}]}},symbol:'none'},
+    {name:'昨日',type:'line',smooth:true,data:[0,0,0,0,0,3,55,170,340,460,530,570,550,510,490,430,320,190,65,12,0,0,0,0],lineStyle:{color:'rgba(126,184,218,0.5)',width:1.5,type:'dashed'},symbol:'none'}
+  ]
+});
+
+// ========== Gauge ==========
+const chartGauge=echarts.init(document.getElementById('chartGauge'));
+chartGauge.setOption({
+  series:[
+    {type:'gauge',center:['25%','55%'],radius:'65%',startAngle:210,endAngle:-30,min:0,max:100,splitNumber:10,axisLine:{show:true,lineStyle:{width:16,color:[[0.3,'#ff6b6b'],[0.7,'#ffaa00'],[1,'#00ff88']]}},pointer:{icon:`path://M12.8,0.7l12,40.1H0.7L12.8,0.7z`,length:'60%',width:8,itemStyle:{color:'#e0f0ff'}},axisTick:{distance:-12,length:6,lineStyle:{color:'#fff',width:1.5}},splitLine:{distance:-16,length:12,lineStyle:{color:'#fff',width:2.5}},axisLabel:{color:'#7eb8da',fontSize:10,distance:25},detail:{valueAnimation:true,formatter:'{value}%',color:'#e0f0ff',fontSize:22,fontWeight:'bold',offsetCenter:[0,'70%']},title:{offsetCenter:[0,'90%'],fontSize:11,color:'#7eb8da'},data:[{value:96.8,name:'光伏计划完成率'}]},
+    {type:'gauge',center:['75%','55%'],radius:'65%',startAngle:210,endAngle:-30,min:0,max:100,splitNumber:10,axisLine:{show:true,lineStyle:{width:16,color:[[0.3,'#ff6b6b'],[0.7,'#ffaa00'],[1,'#00ff88']]}},pointer:{icon:`path://M12.8,0.7l12,40.1H0.7L12.8,0.7z`,length:'60%',width:8,itemStyle:{color:'#e0f0ff'}},axisTick:{distance:-12,length:6,lineStyle:{color:'#fff',width:1.5}},splitLine:{distance:-16,length:12,lineStyle:{color:'#fff',width:2.5}},axisLabel:{color:'#7eb8da',fontSize:10,distance:25},detail:{valueAnimation:true,formatter:'{value}%',color:'#e0f0ff',fontSize:22,fontWeight:'bold',offsetCenter:[0,'70%']},title:{offsetCenter:[0,'90%'],fontSize:11,color:'#7eb8da'},data:[{value:92.3,name:'风电计划完成率'}]}
+  ]
+});
+
+// ========== Radar ==========
+const chartRadar=echarts.init(document.getElementById('chartRadar'));
+chartRadar.setOption({
+  tooltip:{backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff',textStyle:{color:'#e0f0ff'}},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10}},
+  radar:{
+    center:['50%','50%'],radius:'62%',
+    indicator:[
+      {name:'出力稳定率',max:100},{name:'响应速度',max:100},{name:'调度执行率',max:100},
+      {name:'设备健康度',max:100},{name:'预测准确率',max:100},{name:'并网效率',max:100}
+    ],
+    axisName:{color:'#7eb8da',fontSize:10},
+    splitArea:{areaStyle:{color:['rgba(0,200,255,0.02)','rgba(0,200,255,0.02)','rgba(0,200,255,0.02)','rgba(0,200,255,0.02)','rgba(0,200,255,0.02)']}},
+    axisLine:{lineStyle:{color:'rgba(0,200,255,0.2)'}},
+    splitLine:{lineStyle:{color:'rgba(0,200,255,0.15)'}}
+  },
+  series:[{
+    type:'radar',
+    data:[
+      {value:[96,88,94,92,90,95],name:'光伏集群',areaStyle:{color:'rgba(255,170,0,0.2)'},lineStyle:{color:'#ffaa00',width:2},itemStyle:{color:'#ffaa00'}},
+      {value:[90,85,88,87,82,91],name:'风电集群',areaStyle:{color:'rgba(0,212,255,0.2)'},lineStyle:{color:'#00d4ff',width:2},itemStyle:{color:'#00d4ff'}},
+    ]
+  }]
+});
+
+// ========== Resource Table Data ==========
+const resources=[
+  {id:'PS-028',name:'光伏电站-西北基地',type:'光伏',cap:200,real:185,load:92.5,status:'online',eff:97.2,time:'14:32:10'},
+  {id:'PS-031',name:'光伏电站-华南园区',type:'光伏',cap:150,real:142,load:94.7,status:'online',eff:96.8,time:'14:32:08'},
+  {id:'WF-003',name:'风电场-沿海A区',type:'风电',cap:300,real:268,load:89.3,status:'online',eff:94.5,time:'14:32:05'},
+  {id:'WF-007',name:'风电场-北部高原',type:'风电',cap:250,real:215,load:86.0,status:'online',eff:93.1,time:'14:32:07'},
+  {id:'ES-012',name:'储能站-中心枢纽',type:'储能',cap:80,real:62,load:77.5,status:'online',eff:98.5,time:'14:32:03'},
+  {id:'ES-015',name:'储能站-东部节点',type:'储能',cap:60,real:48,load:80.0,status:'online',eff:97.9,time:'14:32:06'},
+  {id:'PS-045',name:'光伏电站-分布式屋顶',type:'光伏',cap:50,real:12,load:24.0,status:'fault',eff:85.2,time:'14:15:30'},
+  {id:'WF-011',name:'风电场-山地B区',type:'风电',cap:180,real:152,load:84.4,status:'online',eff:92.6,time:'14:32:04'},
+];
+const tbody=document.getElementById('resourceTableBody');
+resources.forEach(r=>{
+  const tr=document.createElement('tr');
+  const statusClass=r.status==='online'?'green':r.status==='warn'?'yellow':'red';
+  const statusLabel=r.status==='online'?'运行中':r.status==='warn'?'告警':'故障';
+  const typeClass=r.type==='光伏'?'orange':r.type==='风电'?'blue':'green';
+  const loadClass=r.load>90?'green':r.load>60?'blue':'orange';
+  tr.innerHTML=`
+    <td style="color:var(--accent);">${r.id}</td>
+    <td style="color:var(--text-primary);">${r.name}</td>
+    <td><span class="tag ${typeClass}">${r.type}</span></td>
+    <td>${r.cap}</td>
+    <td style="color:var(--text-primary);font-weight:600;">${r.real}</td>
+    <td>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span>${r.load}%</span>
+        <div class="progress-bar" style="flex:1;"><div class="fill ${loadClass}" style="width:${r.load}%"></div></div>
+      </div>
+    </td>
+    <td><span class="status-dot ${statusClass}"></span>${statusLabel}</td>
+    <td style="color:${r.eff>95?'var(--accent2)':r.eff>90?'var(--accent4)':'var(--accent3)'};">${r.eff}%</td>
+    <td>${r.time}</td>
+  `;
+  tbody.appendChild(tr);
+});
+// Update subtitle counts
+document.getElementById('resTotalCount').textContent=resources.length;
+document.getElementById('resOnlineCount').textContent=resources.filter(r=>r.status==='online').length;
+
+// Resize
+window.addEventListener('resize',()=>{
+  [chartBar,chartSolar,chartGauge,chartRadar].forEach(c=>c.resize());
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VPP 虚拟电厂运营管理平台</title>
+<style>
+:root {
+  --bg-deep: #0a0e27; --bg-panel: rgba(6, 30, 60, 0.75);
+  --border-glow: rgba(0, 200, 255, 0.35); --accent: #00d4ff;
+  --accent2: #00ff88; --accent3: #ff6b6b; --accent4: #ffaa00;
+  --text-primary: #e0f0ff; --text-secondary: #7eb8da;
+  --glow-soft: 0 0 20px rgba(0, 180, 255, 0.15);
+  --glow-strong: 0 0 30px rgba(0, 200, 255, 0.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background: var(--bg-deep); color: var(--text-primary);
+  font-family: 'Microsoft YaHei','PingFang SC',sans-serif;
+  min-height: 100vh; overflow-x: hidden;
+}
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+
+.container{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:20px 24px;}
+
+/* Header */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:16px;border-bottom:1px solid rgba(0,200,255,0.2);
+  margin-bottom:24px;flex-wrap:wrap;gap:10px;
+}
+.header-left{display:flex;align-items:center;gap:14px;}
+.header-logo{
+  width:42px;height:42px;background:linear-gradient(135deg,var(--accent4),var(--accent3));
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:bold;color:#fff;box-shadow:0 0 20px rgba(255,170,0,0.4);
+}
+.header-title{font-size:20px;font-weight:700;letter-spacing:2px;}
+.header-sub{font-size:11px;color:var(--text-secondary);margin-top:1px;}
+.header-center{text-align:center;}
+.header-center .time{font-size:28px;font-weight:700;font-family:'Consolas',monospace;letter-spacing:1px;}
+.header-center .date{font-size:12px;color:var(--text-secondary);}
+.header-right{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-secondary);}
+.header-right .user-avatar{
+  width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#0066ff);
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;
+  box-shadow:0 0 10px rgba(0,200,255,0.3);
+}
+.header-right .live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* Stats */
+.stats-row{display:flex;gap:12px;margin-bottom:24px;}
+.stat-card{
+  flex:1;background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:10px;padding:16px 20px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+  display:flex;align-items:center;gap:14px;transition:all .3s;cursor:pointer;
+}
+.stat-card:hover{border-color:var(--accent);box-shadow:var(--glow-strong);transform:translateY(-2px);}
+.stat-card::before{content:'';position:absolute;top:-1px;left:15%;right:15%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.stat-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.stat-info{flex:1;min-width:0;}
+.stat-label{font-size:10px;color:var(--text-secondary);margin-bottom:2px;}
+.stat-value{font-size:24px;font-weight:700;font-family:'Consolas',monospace;}
+.stat-sub{font-size:9px;color:var(--text-secondary);margin-top:2px;}
+
+/* Section */
+.section-title{
+  font-size:15px;font-weight:700;margin-bottom:16px;
+  padding-left:12px;border-left:3px solid var(--accent);
+  display:flex;align-items:center;gap:8px;
+}
+.st-badge{font-size:10px;color:var(--text-secondary);font-weight:400;}
+
+/* Module Grid */
+.module-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px;}
+.module-card{
+  background:var(--bg-panel);border:1px solid rgba(0,200,255,0.18);
+  border-radius:10px;padding:20px 22px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+  transition:all .35s;cursor:pointer;text-decoration:none;color:inherit;
+  display:flex;flex-direction:column;
+}
+.module-card:hover{border-color:var(--accent);box-shadow:var(--glow-strong);transform:translateY(-3px);}
+.module-card::before{content:'';position:absolute;top:-1px;left:15%;right:15%;height:1px;background:linear-gradient(90deg,transparent,rgba(0,200,255,0.5),transparent);}
+.module-card .mc-icon{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;}
+.module-card .mc-name{font-size:14px;font-weight:700;margin-bottom:4px;}
+.module-card .mc-desc{font-size:10px;color:var(--text-secondary);line-height:1.5;flex:1;}
+.module-card .mc-tag{display:inline-block;margin-top:10px;font-size:9px;padding:3px 8px;border-radius:3px;align-self:flex-start;}
+.tag-dv{background:rgba(0,200,255,0.12);color:var(--accent);}
+
+/* Footer */
+.footer{text-align:center;padding:20px 0;border-top:1px solid rgba(0,200,255,0.12);margin-top:8px;}
+.footer span{font-size:10px;color:var(--text-secondary);}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">⚡</div>
+      <div>
+        <div class="header-title">虚拟电厂运营管理平台</div>
+        <div class="header-sub">VPP Operations Management · V2.0.0</div>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="time" id="liveTime">--:--:--</div>
+      <div class="date" id="liveDate">----年--月--日 星期-</div>
+    </div>
+    <div class="header-right">
+      <div class="live-dot"></div><span>系统运行中</span>
+      <span>|</span>
+      <div class="user-avatar">张</div>
+      <span>调度员 · 张三</span>
+      <a href="login-prototype.html" style="color:var(--accent);text-decoration:none;font-size:11px;padding:4px 10px;border:1px solid var(--accent);border-radius:4px;">退出</a>
+    </div>
+  </div>
+
+  <!-- KPI 统计 -->
+  <div class="stats-row">
+    <div class="stat-card" onclick="location.href='dashboard.html'">
+      <div class="stat-icon" style="background:rgba(0,255,136,0.1);color:var(--accent2);">⚡</div>
+      <div class="stat-info"><div class="stat-label">实时总出力</div><div class="stat-value" style="color:var(--accent2);">1,250<span style="font-size:13px;"> MW</span></div><div class="stat-sub">↑ 3.2% · 点击进入大屏</div></div>
+    </div>
+    <div class="stat-card" onclick="location.href='dispatch-overview.html'">
+      <div class="stat-icon" style="background:rgba(0,200,255,0.1);color:var(--accent);">📊</div>
+      <div class="stat-info"><div class="stat-label">可调容量</div><div class="stat-value" style="color:var(--accent);">800<span style="font-size:13px;"> MW</span></div><div class="stat-sub">上调 450 · 下调 350 · 调度总览</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(255,170,0,0.1);color:var(--accent4);">💰</div>
+      <div class="stat-info"><div class="stat-label">今日预估收益</div><div class="stat-value" style="color:var(--accent4);">128,500<span style="font-size:13px;"> 元</span></div><div class="stat-sub">累计调度 42 次</div></div>
+    </div>
+    <div class="stat-card" onclick="location.href='alarm-center.html'">
+      <div class="stat-icon" style="background:rgba(255,107,107,0.1);color:var(--accent3);">🔔</div>
+      <div class="stat-info"><div class="stat-label">活跃告警</div><div class="stat-value" style="color:var(--accent3);">3<span style="font-size:13px;"> 条</span></div><div class="stat-sub">紧急 1 · 重要 2 · 告警中心</div></div>
+    </div>
+  </div>
+
+  <!-- 数字大屏 -->
+  <div class="section-title">📺 数字大屏 <span class="st-badge">D:\Cursor\docs\datav-v2\</span></div>
+  <div class="module-grid">
+    <a href="dashboard.html" target="_blank" class="module-card">
+      <div class="mc-icon" style="background:rgba(0,200,255,0.1);color:var(--accent);">📺</div>
+      <div class="mc-name">调度大屏 Dashboard</div>
+      <div class="mc-desc">KPI 概览 · 资源地图 · 实时告警 · VPP收益构成 · 市场行情</div>
+      <span class="mc-tag tag-dv">DataV</span>
+    </a>
+    <a href="dispatch-overview.html" target="_blank" class="module-card">
+      <div class="mc-icon" style="background:rgba(0,255,136,0.1);color:var(--accent2);">📋</div>
+      <div class="mc-name">实时调度总览</div>
+      <div class="mc-desc">多资源类型总览 · 功率曲线 · 调度执行状态</div>
+      <span class="mc-tag tag-dv">DataV</span>
+    </a>
+    <a href="dispatch-detail.html" target="_blank" class="module-card">
+      <div class="mc-icon" style="background:rgba(255,170,0,0.1);color:var(--accent4);">🎯</div>
+      <div class="mc-name">实时调度工作站</div>
+      <div class="mc-desc">四资源类型切换 · DR模式 · 调频模式 · 削峰填谷策略</div>
+      <span class="mc-tag tag-dv">DataV</span>
+    </a>
+    <a href="resource-monitor.html" target="_blank" class="module-card">
+      <div class="mc-icon" style="background:rgba(0,200,255,0.1);color:var(--accent);">📊</div>
+      <div class="mc-name">资源监控</div>
+      <div class="mc-desc">单资源实时数据 · 历史曲线 · 双状态展示 · 趋势分析</div>
+      <span class="mc-tag tag-dv">DataV</span>
+    </a>
+    <a href="alarm-center.html" target="_blank" class="module-card">
+      <div class="mc-icon" style="background:rgba(255,107,107,0.1);color:var(--accent3);">🚨</div>
+      <div class="mc-name">告警中心</div>
+      <div class="mc-desc">实时告警流 · 级别分布 · 趋势 · unacked/confirmed</div>
+      <span class="mc-tag tag-dv">DataV</span>
+    </a>
+    <a href="settlement.html" target="_blank" class="module-card">
+      <div class="mc-icon" style="background:rgba(0,255,136,0.1);color:var(--accent2);">💳</div>
+      <div class="mc-name">结算管理</div>
+      <div class="mc-desc">DR结算 · 辅助服务结算 · 偏差考核 · 月度趋势</div>
+      <span class="mc-tag tag-dv">DataV</span>
+    </a>
+    <a href="dr-events.html" target="_blank" class="module-card">
+      <div class="mc-icon" style="background:rgba(255,107,107,0.1);color:var(--accent3);">📋</div>
+      <div class="mc-name">需求响应管理</div>
+      <div class="mc-desc">DR事件管理 · 基线计算 · M&V验证 · 补贴结算</div>
+      <span class="mc-tag tag-dv">新增</span>
+    </a>
+    <a href="market-trading.html" target="_blank" class="module-card">
+      <div class="mc-icon" style="background:rgba(0,200,255,0.1);color:var(--accent);">📈</div>
+      <div class="mc-name">电力市场行情</div>
+      <div class="mc-desc">日前市场 · 实时市场 · 辅助服务 · 中长期合约价格</div>
+      <span class="mc-tag tag-dv">新增</span>
+    </a>
+    <a href="vpp-overview.html" target="_blank" class="module-card">
+      <div class="mc-icon" style="background:rgba(0,255,136,0.1);color:var(--accent2);">🔗</div>
+      <div class="mc-name">VPP 运营总览</div>
+      <div class="mc-desc">运营闭环 · 聚合商管理 · 可调能力 · 收益分析</div>
+      <span class="mc-tag tag-dv">新增</span>
+    </a>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span>© 2026 虚拟电厂运营管理平台 V1.0.3 · VPP Operations Management Platform</span>
+  </div>
+</div>
+
+<script>
+const canvas=document.getElementById('bgCanvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+
+const particles=[];
+class P{
+  constructor(){this.reset();}
+  reset(){this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.r=Math.random()*1.5+0.5;this.vx=(Math.random()-0.5)*0.3;this.vy=(Math.random()-0.5)*0.3;this.a=Math.random()*0.4+0.15;}
+  update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height)this.reset();}
+  draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,200,255,${this.a})`;ctx.fill();}
+}
+for(let i=0;i<80;i++)particles.push(new P());
+
+function animateBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='rgba(0,180,255,0.025)';ctx.lineWidth=0.5;
+  for(let x=60;x<canvas.width;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=60;y<canvas.height;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  particles.forEach(p=>{p.update();p.draw();});
+  for(let i=0;i<particles.length;i++){
+    for(let j=i+1;j<particles.length;j++){
+      const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<100){ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.strokeStyle=`rgba(0,200,255,${0.05*(1-dist/100)})`;ctx.stroke();}
+    }
+  }
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+function updateTime(){
+  const now=new Date();
+  document.getElementById('liveTime').textContent=now.toLocaleTimeString('zh-CN',{hour12:false});
+  const days=['日','一','二','三','四','五','六'];
+  document.getElementById('liveDate').textContent=now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日 星期'+days[now.getDay()];
+}
+updateTime();setInterval(updateTime,1000);
+</script>
+</body>
+</html>

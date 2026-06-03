@@ -1,0 +1,103 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: ⚡
+      - generic [ref=e6]:
+        - generic [ref=e7]: 实时调度工作站
+        - generic [ref=e8]: VPP数字平台 / 调度总览 / 详细调度
+    - generic [ref=e9]: 17:35:30
+    - generic [ref=e10]:
+      - generic [ref=e12]: "调度模式: 手动控制"
+      - generic [ref=e13]: "|"
+      - generic [ref=e14]: 👤 调度员 · 张三
+      - button "← 返回总览" [ref=e15] [cursor=pointer]
+  - generic [ref=e16]:
+    - generic [ref=e18]:
+      - generic [ref=e19]: 资源类型
+      - generic [ref=e20] [cursor=pointer]:
+        - generic [ref=e21]: ☀️
+        - text: 光伏调度
+        - generic [ref=e22]: 6站
+      - generic [ref=e23] [cursor=pointer]:
+        - generic [ref=e24]: 🔋
+        - text: 储能调度
+        - generic [ref=e25]: 8站
+      - generic [ref=e26] [cursor=pointer]:
+        - generic [ref=e27]: 🏭
+        - text: 可控负荷
+        - generic [ref=e28]: 3节点
+      - generic [ref=e29] [cursor=pointer]:
+        - generic [ref=e30]: 🔌
+        - text: 充电桩群
+        - generic [ref=e31]: 6站
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - generic [ref=e36]:
+          - text: 📊 超短期辐照预测 vs 实测功率
+          - generic [ref=e37]: (未来30min · 偏差>10%红标)
+        - generic [ref=e41]:
+          - generic [ref=e42]:
+            - generic [ref=e43]: ⚠️ 限发记录
+            - generic [ref=e44]:
+              - generic [ref=e45]: "🟢 电网反送电限制: 50MW (当前出力 445MW，裕度充足)"
+              - generic [ref=e46]: "🟢 逆变器过载保护: 正常 (阈值 110%Pn)"
+              - generic [ref=e47]: "📋 今日限发记录: 1次 · 累计受限电量 2.4 MWh"
+          - generic [ref=e48]:
+            - generic [ref=e49]: 📋 可切优先级排序
+            - table [ref=e50]:
+              - rowgroup [ref=e51]:
+                - row "电站 类型 当前出力 优先级 操作" [ref=e52]:
+                  - columnheader "电站" [ref=e53]
+                  - columnheader "类型" [ref=e54]
+                  - columnheader "当前出力" [ref=e55]
+                  - columnheader "优先级" [ref=e56]
+                  - columnheader "操作" [ref=e57]
+              - rowgroup [ref=e58]:
+                - row "PS-031 华南园区 普通屋顶 142 MW 高 · 优先切除 可切" [ref=e59]:
+                  - cell "PS-031 华南园区" [ref=e60]
+                  - cell "普通屋顶" [ref=e61]
+                  - cell "142 MW" [ref=e62]
+                  - cell "高 · 优先切除" [ref=e63]
+                  - cell "可切" [ref=e64]
+                - row "PS-052 东部新区 普通屋顶 95 MW 高 · 优先切除 可切" [ref=e65]:
+                  - cell "PS-052 东部新区" [ref=e66]
+                  - cell "普通屋顶" [ref=e67]
+                  - cell "95 MW" [ref=e68]
+                  - cell "高 · 优先切除" [ref=e69]
+                  - cell "可切" [ref=e70]
+                - row "PS-028 西北基地 农光互补 185 MW 低 · 末位切除 可切" [ref=e71]:
+                  - cell "PS-028 西北基地" [ref=e72]
+                  - cell "农光互补" [ref=e73]
+                  - cell "185 MW" [ref=e74]
+                  - cell "低 · 末位切除" [ref=e75]
+                  - cell "可切" [ref=e76]
+      - generic [ref=e77]:
+        - generic [ref=e79]:
+          - generic [ref=e80]: 🎛️ 光伏调度指令下发
+          - generic [ref=e81]:
+            - generic [ref=e82]: 操作模式
+            - generic [ref=e83]:
+              - generic [ref=e84] [cursor=pointer]: 降额运行
+              - generic [ref=e85] [cursor=pointer]: 零出力脱网
+          - generic [ref=e86]:
+            - generic [ref=e87]:
+              - generic [ref=e88]: 降额比例
+              - generic [ref=e89]:
+                - generic [ref=e90]: 0%
+                - slider [ref=e91]: "60"
+                - generic [ref=e92]: 100%
+              - generic [ref=e93]: 60%
+            - generic [ref=e94]:
+              - generic [ref=e95]: 目标功率
+              - spinbutton [ref=e96]: "267"
+              - generic [ref=e97]: MW (当前445MW × 60%)
+          - generic [ref=e98]:
+            - generic [ref=e99]: 有效期
+            - combobox [ref=e100] [cursor=pointer]:
+              - option "15 分钟"
+              - option "30 分钟" [selected]
+              - option "60 分钟"
+          - generic [ref=e101]:
+            - button "⚡ 立即下发" [ref=e102] [cursor=pointer]
+            - button "🛑 紧急脱网" [ref=e103] [cursor=pointer]
+        - generic [ref=e106]: 📜 最近指令记录

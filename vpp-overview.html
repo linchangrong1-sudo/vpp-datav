@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VPP 运营总览 - 虚拟电厂</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg-deep:#0a0e27;--bg-panel:rgba(6,30,60,0.75);
+  --border-glow:rgba(0,200,255,0.35);--accent:#00d4ff;
+  --accent2:#00ff88;--accent3:#ff6b6b;--accent4:#ffaa00;
+  --text-primary:#e0f0ff;--text-secondary:#7eb8da;
+  --glow-soft:0 0 20px rgba(0,180,255,0.15);
+  --glow-strong:0 0 30px rgba(0,200,255,0.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg-deep);color:var(--text-primary);
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+  height:100vh;overflow:hidden;
+}
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+.container{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;padding:12px 16px;}
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:10px;border-bottom:1px solid rgba(0,200,255,0.2);
+  flex-shrink:0;margin-bottom:10px;
+}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-logo{width:34px;height:34px;background:linear-gradient(135deg,var(--accent2),#00cc66);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:#fff;box-shadow:0 0 18px rgba(0,255,136,0.5);}
+.header-title{font-size:18px;font-weight:700;letter-spacing:2px;}
+.header-breadcrumb{font-size:12px;color:var(--text-secondary);}
+.header-breadcrumb span{color:var(--accent);cursor:pointer;}
+.header-breadcrumb span:hover{text-decoration:underline;}
+.header-right{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-secondary);}
+.header-right .time{font-size:22px;font-weight:700;font-family:'Consolas',monospace;color:#e0f0ff;}
+.header-right .live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+/* Stats */
+.stats-row{display:flex;gap:10px;flex-shrink:0;margin-bottom:10px;}
+.stat-card{
+  flex:1;background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:10px 14px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);display:flex;align-items:center;gap:12px;
+}
+.stat-card::before{content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.stat-card .sc-icon{font-size:22px;flex-shrink:0;}
+.stat-card .sc-info{flex:1;}
+.stat-card .sc-label{font-size:10px;color:var(--text-secondary);}
+.stat-card .sc-value{font-size:20px;font-weight:700;font-family:'Consolas',monospace;}
+.stat-card .sc-sub{font-size:9px;color:var(--text-secondary);margin-top:1px;}
+/* Flow chart */
+.flow-bar{display:flex;align-items:center;justify-content:center;gap:0;flex-shrink:0;margin-bottom:10px;padding:8px 10px;background:var(--bg-panel);border:1px solid var(--border-glow);border-radius:8px;position:relative;backdrop-filter:blur(8px);}
+.flow-bar::before{content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.flow-step{display:flex;align-items:center;gap:6px;padding:5px 14px;border-radius:6px;font-size:11px;color:var(--text-secondary);cursor:pointer;transition:all .3s;}
+.flow-step.active{background:rgba(0,200,255,0.12);color:var(--accent);box-shadow:0 0 10px rgba(0,200,255,0.15);}
+.flow-step.done{background:rgba(0,255,136,0.08);color:var(--accent2);}
+.flow-arrow{color:rgba(126,184,218,0.3);font-size:14px;margin:0 2px;}
+/* Body */
+.body{flex:1;display:flex;gap:10px;min-height:0;}
+.col-left{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;}
+.col-main{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
+.panel{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:12px 14px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+}
+.panel::before{content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.panel-title{font-size:13px;font-weight:700;margin-bottom:8px;padding-left:10px;border-left:3px solid var(--accent);display:flex;align-items:center;gap:6px;}
+.chart-box{width:100%;height:100%;min-height:150px;}
+/* Aggregator cards */
+.agg-list{display:flex;flex-direction:column;gap:4px;}
+.agg-card{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:4px;background:rgba(0,180,255,0.04);border:1px solid rgba(0,180,255,0.08);font-size:10px;}
+.agg-card .ag-name{flex:1;font-weight:600;color:var(--text-primary);}
+.agg-card .ag-count{color:var(--accent);}
+.agg-card .ag-cap{color:var(--accent2);}
+.agg-card .ag-rate{color:var(--text-secondary);font-size:9px;}
+/* Detail rows */
+.detail-row{display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid rgba(0,180,255,0.04);}
+.detail-row .dl{color:var(--text-secondary);}
+.detail-row .dv{color:var(--text-primary);font-weight:500;}
+.detail-row .dv.green{color:var(--accent2);}
+/* Content split */
+.content-split{flex:1;display:flex;gap:10px;min-height:0;}
+.content-left{flex:1.2;display:flex;flex-direction:column;gap:10px;}
+.content-right{flex:1;display:flex;flex-direction:column;gap:10px;}
+.scroll-y{overflow-y:auto;}
+.scroll-y::-webkit-scrollbar{width:4px;}
+.scroll-y::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">⚡</div>
+      <div>
+        <div class="header-title">VPP 运营总览</div>
+        <div class="header-breadcrumb">VPP数字平台 / <span onclick="location.href='index.html'">首页</span> / <span>运营总览</span></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-dot"></div><span>运营中</span>
+      <span>|</span>
+      <span>👤 运营经理</span>
+      <span class="time" id="liveTime">--:--:--</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="sc-icon">📦</div><div class="sc-info"><div class="sc-label">聚合总容量</div><div class="sc-value" style="color:var(--accent);">2,850</div><div class="sc-sub">MW</div></div></div>
+    <div class="stat-card"><div class="sc-icon">🔗</div><div class="sc-info"><div class="sc-label">在运营资源</div><div class="sc-value" style="color:var(--accent2);">246</div><div class="sc-sub">个 · 在线率 96.2%</div></div></div>
+    <div class="stat-card"><div class="sc-icon">💰</div><div class="sc-info"><div class="sc-label">月市场收益</div><div class="sc-value" style="color:var(--accent4);">¥1,286.5</div><div class="sc-sub">万元</div></div></div>
+    <div class="stat-card"><div class="sc-icon">✅</div><div class="sc-info"><div class="sc-label">结算率</div><div class="sc-value" style="color:var(--accent2);">94.8</div><div class="sc-sub">% · 目标 ≥ 95%</div></div></div>
+    <div class="stat-card"><div class="sc-icon">📊</div><div class="sc-info"><div class="sc-label">本月中标率</div><div class="sc-value" style="color:var(--accent);">82.6</div><div class="sc-sub">%</div></div></div>
+  </div>
+
+  <!-- Flow Bar -->
+  <div class="flow-bar">
+    <div class="flow-step done" data-step="1">📋 资源接入</div>
+    <span class="flow-arrow">▶</span>
+    <div class="flow-step done" data-step="2">📊 能力评估</div>
+    <span class="flow-arrow">▶</span>
+    <div class="flow-step active" data-step="3">📈 市场申报</div>
+    <span class="flow-arrow">▶</span>
+    <div class="flow-step" data-step="4">🎛️ 调度执行</div>
+    <span class="flow-arrow">▶</span>
+    <div class="flow-step" data-step="5">💰 结算归档</div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <!-- Left -->
+    <div class="col-left scroll-y">
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title">🏢 聚合商管理</div>
+        <div class="agg-list">
+          <div class="agg-card"><span class="ag-name">华能新能源</span><span class="ag-count">42 个</span><span class="ag-cap">520 MW</span><span class="ag-rate">98.2%</span></div>
+          <div class="agg-card"><span class="ag-name">国电投集团</span><span class="ag-count">58 个</span><span class="ag-cap">680 MW</span><span class="ag-rate">95.6%</span></div>
+          <div class="agg-card"><span class="ag-name">中广核风电</span><span class="ag-count">36 个</span><span class="ag-cap">450 MW</span><span class="ag-rate">97.1%</span></div>
+          <div class="agg-card"><span class="ag-name">华电新能源</span><span class="ag-count">28 个</span><span class="ag-cap">380 MW</span><span class="ag-rate">93.8%</span></div>
+          <div class="agg-card"><span class="ag-name">大唐电力</span><span class="ag-count">45 个</span><span class="ag-cap">520 MW</span><span class="ag-rate">96.5%</span></div>
+          <div class="agg-card"><span class="ag-name">城市能源集团</span><span class="ag-count">37 个</span><span class="ag-cap">300 MW</span><span class="ag-rate">94.2%</span></div>
+        </div>
+      </div>
+      <div class="panel" style="flex:1;">
+        <div class="panel-title">📊 资源分类分布</div>
+        <div id="chartResDist" class="chart-box" style="height:140px;"></div>
+      </div>
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title">📋 运营小结</div>
+        <div style="font-size:10px;color:var(--text-secondary);">
+          <div class="detail-row"><span class="dl">运营天数</span><span class="dv">182 天</span></div>
+          <div class="detail-row"><span class="dl">调度总次数</span><span class="dv">2,386 次</span></div>
+          <div class="detail-row"><span class="dl">累计交易电量</span><span class="dv">652,800 MWh</span></div>
+          <div class="detail-row"><span class="dl">累计交易额</span><span class="dv green">¥2.68 亿</span></div>
+          <div class="detail-row"><span class="dl">累计DR收益</span><span class="dv green">¥386 万</span></div>
+          <div class="detail-row"><span class="dl">累计辅助服务收益</span><span class="dv green">¥1,245 万</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div class="col-main">
+      <div class="content-split" style="flex:1;">
+        <div class="content-left">
+          <div class="panel" style="flex:1;">
+            <div class="panel-title">🎯 可调能力雷达</div>
+            <div id="chartRadar" class="chart-box"></div>
+          </div>
+          <div class="panel" style="flex:1;">
+            <div class="panel-title">📈 近7天日发电量</div>
+            <div id="chartDaily" class="chart-box"></div>
+          </div>
+        </div>
+        <div class="content-right">
+          <div class="panel" style="flex:1;">
+            <div class="panel-title">💰 月度收益趋势</div>
+            <div id="chartRevenue" class="chart-box"></div>
+          </div>
+          <div class="panel" style="flex:0 0 auto;">
+            <div class="panel-title">📊 VPP 收益来源</div>
+            <div id="chartPie" class="chart-box" style="height:130px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== Background ==========
+const canvas=document.getElementById('bgCanvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+const particles=[];
+class P{constructor(){this.reset();}reset(){this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.r=Math.random()*1.5+0.5;this.vx=(Math.random()-0.5)*0.3;this.vy=(Math.random()-0.5)*0.3;this.a=Math.random()*0.4+0.15;}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height)this.reset();}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,200,255,${this.a})`;ctx.fill();}}
+for(let i=0;i<60;i++)particles.push(new P());
+function animateBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='rgba(0,180,255,0.03)';ctx.lineWidth=0.5;
+  for(let x=60;x<canvas.width;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=60;y<canvas.height;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// ========== Clock ==========
+function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});}
+updateTime();setInterval(updateTime,1000);
+
+// ========== Flow Step Click ==========
+document.querySelectorAll('.flow-step').forEach(step=>{
+  step.addEventListener('click',function(){
+    const stepId=parseInt(this.dataset.step);
+    document.querySelectorAll('.flow-step').forEach(s=>s.classList.remove('active'));
+    this.classList.add('active');
+    // Mark previous steps as done
+    document.querySelectorAll('.flow-step').forEach(s=>(parseInt(s.dataset.step)<stepId)?s.classList.add('done'):s.classList.remove('done'));
+  });
+});
+
+// ========== Resource Distribution Pie ==========
+const chartRes=echarts.init(document.getElementById('chartResDist'));
+chartRes.setOption({
+  tooltip:{trigger:'item'},
+  series:[{
+    type:'pie',radius:['45%','72%'],center:['50%','50%'],
+    data:[
+      {value:35,name:'光伏',itemStyle:{color:'#ffaa00'}},
+      {value:25,name:'风电',itemStyle:{color:'#00d4ff'}},
+      {value:18,name:'储能',itemStyle:{color:'#00ff88'}},
+      {value:12,name:'可控负荷',itemStyle:{color:'#ff8264'}},
+      {value:10,name:'充电桩',itemStyle:{color:'#b482ff'}},
+    ],
+    label:{formatter:'{b}\n{d}%',color:'#7eb8da',fontSize:9},
+    emphasis:{label:{fontSize:12,fontWeight:'bold'}}
+  }]
+});
+
+// ========== Radar ==========
+const chartRadar=echarts.init(document.getElementById('chartRadar'));
+chartRadar.setOption({
+  tooltip:{backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:8}},
+  radar:{
+    center:['50%','50%'],radius:'60%',
+    indicator:[
+      {name:'上调能力',max:100},{name:'下调能力',max:100},
+      {name:'响应速度',max:100},{name:'持续时间',max:100},{name:'调节精度',max:100}
+    ],
+    axisName:{color:'#7eb8da',fontSize:9},
+    splitArea:{areaStyle:{color:['rgba(0,180,255,0.02)','rgba(0,180,255,0.02)']}},
+    axisLine:{lineStyle:{color:'rgba(0,200,255,0.2)'}},
+    splitLine:{lineStyle:{color:'rgba(0,200,255,0.12)'}}
+  },
+  series:[{
+    type:'radar',
+    data:[
+      {value:[92,85,88,78,95],name:'光伏',areaStyle:{color:'rgba(255,170,0,0.15)'},lineStyle:{color:'#ffaa00',width:2},itemStyle:{color:'#ffaa00'}},
+      {value:[72,88,65,95,82],name:'风电',areaStyle:{color:'rgba(0,212,255,0.15)'},lineStyle:{color:'#00d4ff',width:2},itemStyle:{color:'#00d4ff'}},
+      {value:[95,92,98,85,90],name:'储能',areaStyle:{color:'rgba(0,255,136,0.15)'},lineStyle:{color:'#00ff88',width:2},itemStyle:{color:'#00ff88'}},
+      {value:[60,85,70,45,75],name:'可控负荷',areaStyle:{color:'rgba(255,130,100,0.15)'},lineStyle:{color:'#ff8264',width:2},itemStyle:{color:'#ff8264'}},
+    ]
+  }]
+});
+
+// ========== Daily Generation ==========
+const chartDaily=echarts.init(document.getElementById('chartDaily'));
+chartDaily.setOption({
+  tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+  grid:{left:45,right:15,top:8,bottom:22},
+  xAxis:{type:'category',data:['05/27','05/28','05/29','05/30','05/31','06/01','06/02'],axisLabel:{color:'#7eb8da',fontSize:8}},
+  yAxis:{type:'value',name:'MWh',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+  series:[{
+    type:'bar',data:[28500,30200,29800,31500,32600,34800,36200],
+    barWidth:16,itemStyle:{borderRadius:[4,4,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#00d4ff'},{offset:1,color:'rgba(0,212,255,0.15)'}])},
+    label:{show:true,position:'top',color:'#7eb8da',fontSize:8,formatter:'{c}'}
+  }]
+});
+
+// ========== Revenue Trend ==========
+const chartRevenue=echarts.init(document.getElementById('chartRevenue'));
+chartRevenue.setOption({
+  tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:9},itemWidth:10,itemHeight:8},
+  grid:{left:50,right:15,top:12,bottom:28},
+  xAxis:{type:'category',data:['1月','2月','3月','4月','5月','6月'],axisLabel:{color:'#7eb8da',fontSize:8}},
+  yAxis:{type:'value',name:'万元',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+  series:[
+    {name:'电力交易',type:'bar',stack:'revenue',data:[580,620,680,720,780,820],itemStyle:{color:'#00d4ff'}},
+    {name:'辅助服务',type:'bar',stack:'revenue',data:[180,220,250,280,320,340],itemStyle:{color:'#00ff88'}},
+    {name:'需求响应',type:'bar',stack:'revenue',data:[80,95,110,125,140,155],itemStyle:{color:'#ffaa00'}},
+    {name:'容量补偿',type:'bar',stack:'revenue',data:[40,42,45,48,50,52],itemStyle:{color:'#b482ff'}},
+  ]
+});
+
+// ========== Pie ==========
+const chartPie=echarts.init(document.getElementById('chartPie'));
+chartPie.setOption({
+  tooltip:{trigger:'item'},
+  series:[{
+    type:'pie',radius:['50%','75%'],center:['50%','50%'],
+    data:[
+      {value:52,name:'电力交易',itemStyle:{color:'#00d4ff'}},
+      {value:22,name:'辅助服务',itemStyle:{color:'#00ff88'}},
+      {value:16,name:'需求响应',itemStyle:{color:'#ffaa00'}},
+      {value:10,name:'容量补偿',itemStyle:{color:'#b482ff'}},
+    ],
+    label:{formatter:'{b}\n{d}%',color:'#7eb8da',fontSize:9},
+    emphasis:{label:{fontSize:12,fontWeight:'bold'}}
+  }]
+});
+
+// Resize
+window.addEventListener('resize',()=>{
+  [chartRes,chartRadar,chartDaily,chartRevenue,chartPie].forEach(c=>c.resize());
+});
+</script>
+</body>
+</html>

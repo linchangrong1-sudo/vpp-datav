@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电力市场行情 - VPP 虚拟电厂</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg-deep:#0a0e27;--bg-panel:rgba(6,30,60,0.75);
+  --border-glow:rgba(0,200,255,0.35);--accent:#00d4ff;
+  --accent2:#00ff88;--accent3:#ff6b6b;--accent4:#ffaa00;
+  --text-primary:#e0f0ff;--text-secondary:#7eb8da;
+  --glow-soft:0 0 20px rgba(0,180,255,0.15);
+  --glow-strong:0 0 30px rgba(0,200,255,0.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg-deep);color:var(--text-primary);
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+  height:100vh;overflow:hidden;
+}
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+.container{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;padding:12px 16px;}
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:10px;border-bottom:1px solid rgba(0,200,255,0.2);
+  flex-shrink:0;margin-bottom:10px;
+}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-logo{width:34px;height:34px;background:linear-gradient(135deg,var(--accent4),var(--accent3));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:#fff;box-shadow:0 0 18px rgba(255,170,0,0.5);}
+.header-title{font-size:18px;font-weight:700;letter-spacing:2px;}
+.header-breadcrumb{font-size:12px;color:var(--text-secondary);}
+.header-breadcrumb span{color:var(--accent);cursor:pointer;}
+.header-breadcrumb span:hover{text-decoration:underline;}
+.header-right{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-secondary);}
+.header-right .time{font-size:22px;font-weight:700;font-family:'Consolas',monospace;color:#e0f0ff;}
+.header-right .live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent3);box-shadow:0 0 8px var(--accent3);animation:pulse2 1.5s infinite;}
+@keyframes pulse2{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(1.8)}}
+.body{flex:1;display:flex;gap:12px;min-height:0;}
+/* Stats row */
+.stats-row{display:flex;gap:10px;flex-shrink:0;margin-bottom:10px;}
+.stat-card{
+  flex:1;background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:10px 14px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);display:flex;align-items:center;gap:12px;
+}
+.stat-card::before{content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.stat-card .sc-icon{font-size:24px;flex-shrink:0;}
+.stat-card .sc-info{flex:1;}
+.stat-card .sc-label{font-size:10px;color:var(--text-secondary);}
+.stat-card .sc-value{font-size:20px;font-weight:700;font-family:'Consolas',monospace;}
+.stat-card .sc-sub{font-size:9px;color:var(--text-secondary);margin-top:1px;}
+/* Tabs */
+.tab-bar{display:flex;gap:0;flex-shrink:0;margin-bottom:10px;}
+.tab-btn{
+  padding:7px 22px;font-size:12px;color:var(--text-secondary);
+  border:1px solid rgba(0,200,255,0.2);cursor:pointer;
+  background:rgba(0,20,50,0.4);transition:all .3s;font-family:inherit;
+}
+.tab-btn:first-child{border-radius:6px 0 0 6px;}
+.tab-btn:last-child{border-radius:0 6px 6px 0;}
+.tab-btn.active{background:rgba(0,200,255,0.15);color:var(--accent);border-color:var(--accent);box-shadow:0 0 10px rgba(0,200,255,0.15);}
+/* Content split */
+.content-split{flex:1;display:flex;gap:10px;min-height:0;}
+.col-main{flex:1.5;display:flex;flex-direction:column;gap:10px;min-width:0;}
+.col-side{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
+.panel{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:12px 14px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+}
+.panel::before{content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.panel-title{font-size:13px;font-weight:700;margin-bottom:8px;padding-left:10px;border-left:3px solid var(--accent);display:flex;align-items:center;gap:6px;}
+.chart-box{width:100%;height:100%;min-height:180px;}
+/* Detail rows */
+.detail-row{display:flex;justify-content:space-between;padding:4px 0;font-size:11px;border-bottom:1px solid rgba(0,180,255,0.05);}
+.detail-row .dl{color:var(--text-secondary);}
+.detail-row .dv{color:var(--text-primary);font-weight:500;}
+.detail-row .dv.green{color:var(--accent2);}
+.detail-row .dv.red{color:var(--accent3);}
+.scroll-y{overflow-y:auto;}
+.scroll-y::-webkit-scrollbar{width:4px;}
+.scroll-y::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">📈</div>
+      <div>
+        <div class="header-title">电力市场行情</div>
+        <div class="header-breadcrumb">VPP数字平台 / <span onclick="location.href='index.html'">首页</span> / <span>市场行情</span></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-dot"></div><span style="color:var(--accent3);">交易时段</span>
+      <span>|</span>
+      <span>👤 交易员</span>
+      <span class="time" id="liveTime">--:--:--</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="sc-icon">📊</div><div class="sc-info"><div class="sc-label">日前市场均价</div><div class="sc-value" style="color:var(--accent);">385.6</div><div class="sc-sub">元/MWh</div></div></div>
+    <div class="stat-card"><div class="sc-icon">⚡</div><div class="sc-info"><div class="sc-label">实时市场均价</div><div class="sc-value" style="color:var(--accent4);">412.3</div><div class="sc-sub">元/MWh · ↑ 6.9%</div></div></div>
+    <div class="stat-card"><div class="sc-icon">🔧</div><div class="sc-info"><div class="sc-label">辅助服务均价</div><div class="sc-value" style="color:var(--accent2);">28.5</div><div class="sc-sub">元/MWh</div></div></div>
+    <div class="stat-card"><div class="sc-icon">💰</div><div class="sc-info"><div class="sc-label">VPP今日交易收益</div><div class="sc-value" style="color:var(--accent4);">¥68.2</div><div class="sc-sub">万元</div></div></div>
+    <div class="stat-card"><div class="sc-icon">📋</div><div class="sc-info"><div class="sc-label">偏差率</div><div class="sc-value" style="color:var(--accent2);">3.2</div><div class="sc-sub">% · ↑ 0.5%</div></div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <div class="tab-btn active" data-tab="dayahead">📊 日前市场</div>
+    <div class="tab-btn" data-tab="realtime">⚡ 实时市场</div>
+    <div class="tab-btn" data-tab="ancillary">🔧 辅助服务</div>
+    <div class="tab-btn" data-tab="contract">📋 中长期合约</div>
+  </div>
+
+  <!-- Content -->
+  <div class="content-split">
+    <div class="col-main">
+      <div class="panel" style="flex:1;">
+        <div class="panel-title" id="mainChartTitle">📊 日前市场 96 点电价曲线 <span style="font-size:10px;color:var(--text-secondary);">(06-03)</span></div>
+        <div id="chartMain" class="chart-box"></div>
+      </div>
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title">📈 VPP 市场收益构成 <span style="font-size:10px;color:var(--text-secondary);">本月</span></div>
+        <div style="display:flex;gap:10px;">
+          <div id="chartRevenuePie" style="width:160px;height:130px;"></div>
+          <div id="chartRevenueBar" style="flex:1;height:130px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-side">
+      <div class="panel" style="flex:1;">
+        <div class="panel-title" id="sidePanelTitle">📋 市场详情</div>
+        <div class="scroll-y" id="sideContent" style="font-size:11px;"></div>
+      </div>
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title">📊 偏差考核统计</div>
+        <div id="chartDeviation" class="chart-box" style="height:100px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== Background ==========
+const canvas=document.getElementById('bgCanvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+const particles=[];
+class P{constructor(){this.reset();}reset(){this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.r=Math.random()*1.5+0.5;this.vx=(Math.random()-0.5)*0.3;this.vy=(Math.random()-0.5)*0.3;this.a=Math.random()*0.4+0.15;}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height)this.reset();}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,200,255,${this.a})`;ctx.fill();}}
+for(let i=0;i<60;i++)particles.push(new P());
+function animateBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='rgba(0,180,255,0.03)';ctx.lineWidth=0.5;
+  for(let x=60;x<canvas.width;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=60;y<canvas.height;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// ========== Clock ==========
+function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});}
+updateTime();setInterval(updateTime,1000);
+
+// ========== Data ==========
+const peakData=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24];
+const daPrices=[280,260,240,230,225,235,280,360,420,460,480,490,495,485,475,450,440,430,460,440,400,360,320,290];
+const daVpp=[80,60,40,30,25,35,60,100,130,150,160,165,170,160,150,140,135,130,145,140,120,90,70,60];
+const rtPrices=[250,240,235,220,215,225,270,350,410,450,470,480,485,475,465,440,430,420,450,430,390,340,300,270];
+const afPrices=[15,14,13,12,12,13,16,22,28,32,35,36,37,35,33,30,28,26,32,30,25,20,17,15];
+const afCap=[20,18,15,12,10,15,22,35,45,50,52,55,55,50,45,40,38,35,42,38,30,25,20,18];
+
+// ========== Main Chart ==========
+const chartMain=echarts.init(document.getElementById('chartMain'));
+const dayHours=Array.from({length:24},(_,i)=>`${i}:00`);
+const peakZones=[{start:10,end:14,label:'峰'},{start:18,end:22,label:'峰'},{start:6,end:9,label:'平'},{start:15,end:17,label:'平'},{start:23,end:5,label:'谷'}];
+const peakColors=['rgba(255,107,107,0.06)','rgba(255,107,107,0.06)','rgba(0,212,255,0.04)','rgba(0,212,255,0.04)','rgba(0,255,136,0.04)'];
+
+function renderDayAhead(){
+  document.getElementById('mainChartTitle').innerHTML='📊 日前市场 96 点电价曲线 <span style="font-size:10px;color:var(--text-secondary);">(06-03)</span>';
+  chartMain.setOption({
+    tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff',textStyle:{color:'#e0f0ff'}},
+    legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10}},
+    grid:{left:55,right:60,top:15,bottom:32},
+    xAxis:{type:'category',data:dayHours,axisLabel:{color:'#7eb8da',fontSize:9},axisLine:{lineStyle:{color:'rgba(0,180,255,0.2)'}}},
+    yAxis:[
+      {type:'value',name:'元/MWh',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:9}},
+      {type:'value',name:'MW',splitLine:{show:false},axisLabel:{color:'#7eb8da',fontSize:9}}
+    ],
+    visualMap:[{show:false,dimension:0,pieces:[{lte:5,color:'rgba(0,255,136,0.04)'},{gte:6,lte:9,color:'rgba(0,212,255,0.04)'},{gte:10,lte:14,color:'rgba(255,107,107,0.06)'},{gte:15,lte:17,color:'rgba(0,212,255,0.04)'},{gte:18,color:'rgba(255,107,107,0.06)'}]}],
+    series:[
+      {name:'日前电价',type:'line',smooth:true,data:daPrices,lineStyle:{color:'#00d4ff',width:2.5,shadowBlur:8,shadowColor:'rgba(0,212,255,0.4)'},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,212,255,0.25)'},{offset:1,color:'rgba(0,212,255,0.01)'}]}},symbol:'circle',symbolSize:5,itemStyle:{color:'#00d4ff'}},
+      {name:'VPP中标出力',type:'bar',yAxisIndex:1,data:daVpp,barWidth:8,itemStyle:{borderRadius:[3,3,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(0,255,136,0.6)'},{offset:1,color:'rgba(0,255,136,0.1)'}])},label:{show:true,position:'top',color:'#7eb8da',fontSize:8,formatter:'{c}'}},
+    ]
+  },true);
+  renderSideContent('dayahead');
+}
+function renderRealTime(){
+  document.getElementById('mainChartTitle').innerHTML='⚡ 实时平衡市场电价 <span style="font-size:10px;color:var(--text-secondary);">(15min 实时出清)</span>';
+  chartMain.setOption({
+    tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+    legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10}},
+    grid:{left:55,right:60,top:15,bottom:32},
+    xAxis:{type:'category',data:dayHours,axisLabel:{color:'#7eb8da',fontSize:9}},
+    yAxis:[
+      {type:'value',name:'元/MWh',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:9}},
+      {type:'value',name:'MW',splitLine:{show:false},axisLabel:{color:'#7eb8da',fontSize:9}}
+    ],
+    series:[
+      {name:'实时电价',type:'line',smooth:true,data:rtPrices,lineStyle:{color:'#ffaa00',width:2.5,shadowBlur:8,shadowColor:'rgba(255,170,0,0.4)'},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(255,170,0,0.25)'},{offset:1,color:'rgba(255,170,0,0.01)'}]}},symbol:'circle',symbolSize:5,itemStyle:{color:'#ffaa00'}},
+      {name:'偏差考核区间',type:'line',yAxisIndex:0,data:[20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20],lineStyle:{color:'rgba(255,107,107,0.3)',width:1,type:'dashed'},symbol:'none'},
+      {name:'VPP实时出力',type:'line',yAxisIndex:1,smooth:true,data:[90,70,45,35,30,40,65,110,140,155,165,172,178,168,155,148,140,135,150,145,125,95,75,65],lineStyle:{color:'var(--accent2)',width:2},symbol:'none'},
+    ]
+  },true);
+  renderSideContent('realtime');
+}
+function renderAncillary(){
+  document.getElementById('mainChartTitle').innerHTML='🔧 辅助服务市场价格 <span style="font-size:10px;color:var(--text-secondary);">(调频/备用/调压)</span>';
+  chartMain.setOption({
+    tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+    legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:9}},
+    grid:{left:55,right:55,top:15,bottom:32},
+    xAxis:{type:'category',data:dayHours,axisLabel:{color:'#7eb8da',fontSize:9}},
+    yAxis:{type:'value',name:'元/MWh',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:9}},
+    series:[
+      {name:'调频容量',type:'line',smooth:true,data:afPrices.map(p=>p+5),lineStyle:{color:'#00d4ff',width:2},symbol:'none'},
+      {name:'调频里程',type:'line',smooth:true,data:afPrices,lineStyle:{color:'#00ff88',width:2,type:'dashed'},symbol:'none'},
+      {name:'旋转备用',type:'line',smooth:true,data:afPrices.map(p=>p*0.7),lineStyle:{color:'#ffaa00',width:2,type:'dotted'},symbol:'none'},
+      {name:'无功调压',type:'line',smooth:true,data:afPrices.map(p=>p*0.4),lineStyle:{color:'#b482ff',width:1.5,type:'dashed'},symbol:'none'},
+      {name:'VPP参与容量',type:'bar',yAxisIndex:0,data:afCap.map(c=>c*3),barWidth:6,itemStyle:{color:'rgba(0,255,136,0.3)',borderRadius:[2,2,0,0]},yAxisIndex:1},
+    ],
+    yAxis:[{type:'value',name:'元/MWh',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:9}},{type:'value',name:'MW',splitLine:{show:false},axisLabel:{color:'#7eb8da',fontSize:9}}]
+  },true);
+  renderSideContent('ancillary');
+}
+function renderContract(){
+  document.getElementById('mainChartTitle').innerHTML='📋 中长期合约价格趋势 <span style="font-size:10px;color:var(--text-secondary);">(月度均价)</span>';
+  chartMain.setOption({
+    tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+    legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10}},
+    grid:{left:55,right:55,top:15,bottom:32},
+    xAxis:{type:'category',data:['1月','2月','3月','4月','5月','6月','7月(预)'],axisLabel:{color:'#7eb8da',fontSize:9}},
+    yAxis:{type:'value',name:'元/MWh',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:9}},
+    series:[
+      {name:'月度合约价',type:'line',smooth:true,data:[320,335,350,370,380,385,390],lineStyle:{color:'#00d4ff',width:2.5,shadowBlur:6,shadowColor:'rgba(0,212,255,0.4)'},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,212,255,0.18)'},{offset:1,color:'rgba(0,212,255,0.01)'}]}},symbol:'circle',symbolSize:7,itemStyle:{color:'#00d4ff'}},
+      {name:'VPP合约电量',type:'bar',data:[8500,9200,9800,10500,11200,11800,12500],barWidth:16,itemStyle:{borderRadius:[4,4,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(0,255,136,0.5)'},{offset:1,color:'rgba(0,255,136,0.1)'}])},yAxisIndex:1,label:{show:true,position:'top',color:'#7eb8da',fontSize:8,formatter:'{c}'}},
+    ],
+    yAxis:[{type:'value',name:'元/MWh',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:9}},{type:'value',name:'MWh',splitLine:{show:false},axisLabel:{color:'#7eb8da',fontSize:9}}]
+  },true);
+  renderSideContent('contract');
+}
+
+// ========== Side Panel ==========
+function renderSideContent(tab){
+  const el=document.getElementById('sideContent');
+  const title=document.getElementById('sidePanelTitle');
+  const contents={
+    dayahead:`
+      <div style="margin-bottom:6px;font-size:12px;color:var(--accent);font-weight:600;">🗓️ 06-03 日前市场</div>
+      <div class="detail-row"><span class="dl">出清方式</span><span class="dv">边际出清</span></div>
+      <div class="detail-row"><span class="dl">峰时均价 (10:00-14:00)</span><span class="dv" style="color:var(--accent3);">475.6 元/MWh</span></div>
+      <div class="detail-row"><span class="dl">平时均价 (06:00-09:00/15:00-17:00)</span><span class="dv" style="color:var(--accent);">368.2 元/MWh</span></div>
+      <div class="detail-row"><span class="dl">谷时均价 (23:00-05:00)</span><span class="dv" style="color:var(--accent2);">242.5 元/MWh</span></div>
+      <div class="detail-row"><span class="dl">峰谷价差</span><span class="dv" style="color:var(--accent4);">233.1 元/MWh</span></div>
+      <div class="detail-row"><span class="dl">VPP中标总量</span><span class="dv">2,850 MWh</span></div>
+      <div class="detail-row"><span class="dl">日前交易收益</span><span class="dv" style="color:var(--accent2);">¥109.8 万</span></div>
+      <div style="margin-top:8px;padding:6px 8px;border-radius:4px;background:rgba(0,180,255,0.04);">
+        <div style="font-size:10px;color:var(--text-secondary);">💡 建议：峰时段加大储能放电出力，谷时段安排充电，利用价差套利</div>
+      </div>
+    `,
+    realtime:`
+      <div style="margin-bottom:6px;font-size:12px;color:var(--accent);font-weight:600;">⚡ 实时平衡市场</div>
+      <div class="detail-row"><span class="dl">出清间隔</span><span class="dv">15 分钟</span></div>
+      <div class="detail-row"><span class="dl">当前出清价</span><span class="dv" style="color:var(--accent4);">428.6 元/MWh</span></div>
+      <div class="detail-row"><span class="dl">实时 vs 日前差价</span><span class="dv" style="color:var(--accent3);">+11.2%</span></div>
+      <div class="detail-row"><span class="dl">偏差考核阈值</span><span class="dv">±20%</span></div>
+      <div class="detail-row"><span class="dl">VPP实时出力</span><span class="dv">142 MW</span></div>
+      <div class="detail-row"><span class="dl">计划出力</span><span class="dv">138 MW</span></div>
+      <div class="detail-row"><span class="dl">偏差</span><span class="dv" style="color:var(--accent2);">+2.9% (安全)</span></div>
+      <div style="margin-top:8px;padding:6px 8px;border-radius:4px;background:rgba(255,107,107,0.06);border:1px dashed var(--accent3);">
+        <div style="font-size:10px;color:var(--accent3);">⚠️ 实时价格高于日前，偏差考核风险增大，建议保持出力稳定</div>
+      </div>
+    `,
+    ancillary:`
+      <div style="margin-bottom:6px;font-size:12px;color:var(--accent);font-weight:600;">🔧 辅助服务市场</div>
+      <div class="detail-row"><span class="dl">调频容量价格</span><span class="dv">32.5 元/MWh</span></div>
+      <div class="detail-row"><span class="dl">调频里程价格</span><span class="dv">28.5 元/MWh</span></div>
+      <div class="detail-row"><span class="dl">旋转备用价格</span><span class="dv">22.8 元/MWh</span></div>
+      <div class="detail-row"><span class="dl">无功调压价格</span><span class="dv">12.6 元/MWh</span></div>
+      <div class="detail-row"><span class="dl">VPP调频参与</span><span class="dv">52 MW</span></div>
+      <div class="detail-row"><span class="dl">VPP备用参与</span><span class="dv">38 MW</span></div>
+      <div class="detail-row"><span class="dl">VPP辅助服务收益</span><span class="dv" style="color:var(--accent2);">¥18.6 万</span></div>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-secondary);padding:6px 8px;border-radius:4px;background:rgba(0,255,136,0.04);">
+        💡 调频市场利润较高，建议加大储能参与调频容量
+      </div>
+    `,
+    contract:`
+      <div style="margin-bottom:6px;font-size:12px;color:var(--accent);font-weight:600;">📋 中长期合约</div>
+      <div class="detail-row"><span class="dl">6月合约均价</span><span class="dv">385.0 元/MWh</span></div>
+      <div class="detail-row"><span class="dl">合约累计电量</span><span class="dv">63,500 MWh</span></div>
+      <div class="detail-row"><span class="dl">合约完成率</span><span class="dv" style="color:var(--accent2);">92.8%</span></div>
+      <div class="detail-row"><span class="dl">7月预期合约价</span><span class="dv">390.0 元/MWh</span></div>
+      <div class="detail-row"><span class="dl">年度长协合同量</span><span class="dv">150,000 MWh</span></div>
+      <div class="detail-row"><span class="dl">合约交易收益</span><span class="dv" style="color:var(--accent2);">¥2,445 万</span></div>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-secondary);padding:6px 8px;border-radius:4px;background:rgba(0,180,255,0.04);">
+        📌 建议：适时增加7月合约签订量，预期价格上涨
+      </div>
+    `
+  };
+  title.textContent='📋 市场详情';
+  el.innerHTML=contents[tab];
+}
+
+// ========== Pie + Bar Charts ==========
+const chartPie=echarts.init(document.getElementById('chartRevenuePie'));
+chartPie.setOption({
+  tooltip:{trigger:'item'},
+  series:[{
+    type:'pie',radius:['40%','70%'],center:['50%','50%'],
+    data:[
+      {value:45,name:'日前市场',itemStyle:{color:'#00d4ff'}},
+      {value:18,name:'实时市场',itemStyle:{color:'#ffaa00'}},
+      {value:22,name:'辅助服务',itemStyle:{color:'#00ff88'}},
+      {value:15,name:'中长期合约',itemStyle:{color:'#b482ff'}},
+    ],
+    label:{show:false},
+    emphasis:{label:{show:true,color:'#e0f0ff',fontSize:11}}
+  }]
+});
+
+const chartBar=echarts.init(document.getElementById('chartRevenueBar'));
+chartBar.setOption({
+  tooltip:{trigger:'axis'},
+  grid:{left:40,right:10,top:8,bottom:18},
+  xAxis:{type:'category',data:['周一','周二','周三','周四','周五','周六','周日'],axisLabel:{color:'#7eb8da',fontSize:8}},
+  yAxis:{type:'value',name:'万元',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+  series:[
+    {name:'日前',type:'bar',stack:'revenue',data:[62,58,65,70,68,42,38],itemStyle:{color:'#00d4ff'}},
+    {name:'实时',type:'bar',stack:'revenue',data:[18,22,20,25,24,15,12],itemStyle:{color:'#ffaa00'}},
+    {name:'辅助',type:'bar',stack:'revenue',data:[28,26,30,32,30,22,18],itemStyle:{color:'#00ff88'}},
+  ],
+  legend:{show:false}
+});
+
+// ========== Deviation Chart ==========
+const chartDev=echarts.init(document.getElementById('chartDeviation'));
+chartDev.setOption({
+  tooltip:{trigger:'axis'},
+  grid:{left:45,right:15,top:5,bottom:8},
+  xAxis:{type:'category',data:dayHours,axisLabel:{show:false}},
+  yAxis:{type:'value',name:'%',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+  series:[{
+    type:'line',data:[2.1,1.8,1.5,1.2,1.0,0.8,1.5,3.2,4.5,5.2,4.8,3.6,2.8,3.0,3.5,4.0,3.2,2.5,3.8,2.2,1.8,1.5,1.2,0.9],
+    lineStyle:{color:'#00d4ff',width:1.5},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,212,255,0.2)'},{offset:1,color:'rgba(0,212,255,0.01)'}]}},symbol:'none'},
+    {name:'阈值+5%',type:'line',data:Array(24).fill(5),lineStyle:{color:'rgba(255,170,0,0.4)',width:1,type:'dashed'},symbol:'none'},
+    {name:'阈值-5%',type:'line',data:Array(24).fill(-5),lineStyle:{color:'rgba(255,170,0,0.4)',width:1,type:'dashed'},symbol:'none'},
+  ],
+  legend:{show:false}
+});
+
+// ========== Tab Switching ==========
+document.querySelectorAll('.tab-btn').forEach(tab=>{
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.tab-btn').forEach(t=>t.classList.remove('active'));
+    this.classList.add('active');
+    const t=this.dataset.tab;
+    if(t==='dayahead')renderDayAhead();
+    else if(t==='realtime')renderRealTime();
+    else if(t==='ancillary')renderAncillary();
+    else renderContract();
+  });
+});
+
+// Init
+renderDayAhead();
+
+// Resize
+window.addEventListener('resize',()=>{[chartMain,chartPie,chartBar,chartDev].forEach(c=>c.resize());});
+</script>
+</body>
+</html>

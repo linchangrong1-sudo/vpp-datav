@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>结算管理 - VPP 虚拟电厂</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg-deep:#0a0e27;--bg-panel:rgba(6,30,60,0.75);
+  --border-glow:rgba(0,200,255,0.35);--accent:#00d4ff;
+  --accent2:#00ff88;--accent3:#ff6b6b;--accent4:#ffaa00;
+  --text-primary:#e0f0ff;--text-secondary:#7eb8da;
+  --glow-soft:0 0 20px rgba(0,180,255,0.15);
+  --glow-strong:0 0 30px rgba(0,200,255,0.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg-deep);color:var(--text-primary);
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+  height:100vh;overflow-x:hidden;overflow-y:auto;
+}
+body::-webkit-scrollbar{width:6px;}
+body::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+
+.container{
+  position:relative;z-index:1;max-width:1400px;margin:0 auto;
+  padding:16px 20px;
+}
+
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:10px;border-bottom:1px solid rgba(0,200,255,0.2);
+  margin-bottom:16px;
+}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-logo{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),#0066ff);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:#fff;box-shadow:var(--glow-strong);}
+.header-title{font-size:18px;font-weight:700;letter-spacing:2px;}
+.header-breadcrumb{font-size:12px;color:var(--text-secondary);}
+.header-breadcrumb span{color:var(--accent);}
+.header-right .time{font-size:20px;font-weight:700;font-family:'Consolas',monospace;}
+
+/* Stats */
+.stats-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;
+}
+.stat-card{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:16px 18px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+  transition:all .3s;overflow:hidden;
+}
+.stat-card:hover{box-shadow:var(--glow-strong);transform:translateY(-2px);}
+.stat-card::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+}
+.stat-card.card-revenue::after{background:linear-gradient(90deg,transparent,var(--accent2),transparent);}
+.stat-card.card-order::after{background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.stat-card.card-pending::after{background:linear-gradient(90deg,transparent,var(--accent4),transparent);}
+.stat-card.card-rate::after{background:linear-gradient(90deg,transparent,var(--accent3),transparent);}
+.stat-card .card-icon{font-size:24px;margin-bottom:6px;}
+.stat-card .card-value{font-size:28px;font-weight:700;font-family:'Consolas',monospace;margin-bottom:4px;}
+.stat-card .card-value.green{color:var(--accent2);}
+.stat-card .card-value.blue{color:var(--accent);}
+.stat-card .card-value.orange{color:var(--accent4);}
+.stat-card .card-value.red{color:var(--accent3);}
+.stat-card .card-label{font-size:11px;color:var(--text-secondary);}
+.stat-card .card-trend{font-size:10px;margin-top:4px;}
+.stat-card .card-trend.up{color:var(--accent2);}
+.stat-card .card-trend.down{color:var(--accent3);}
+
+/* Content Layout */
+.content-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-bottom:16px;}
+
+.panel{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:14px 16px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+}
+.panel::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.panel-title{
+  font-size:13px;font-weight:700;margin-bottom:10px;
+  padding-left:10px;border-left:3px solid var(--accent);
+  display:flex;align-items:center;gap:6px;
+}
+
+/* Table */
+.table-wrapper{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+thead th{
+  background:rgba(0,180,255,0.08);padding:8px 12px;text-align:left;
+  color:var(--accent);font-weight:600;border-bottom:1px solid var(--border-glow);white-space:nowrap;
+}
+tbody td{
+  padding:8px 12px;border-bottom:1px solid rgba(0,180,255,0.06);
+  color:var(--text-secondary);
+}
+tbody tr{transition:all .3s;cursor:pointer;}
+tbody tr:hover{background:rgba(0,200,255,0.06);}
+tbody tr:hover td{color:var(--text-primary);}
+
+.badge{
+  display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;
+  border:1px solid;white-space:nowrap;
+}
+.badge.draft{border-color:var(--text-secondary);color:var(--text-secondary);background:rgba(126,184,218,0.08);}
+.badge.confirmed{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.08);}
+.badge.settled{border-color:var(--accent2);color:var(--accent2);background:rgba(0,255,136,0.08);}
+.badge.disputed{border-color:var(--accent3);color:var(--accent3);background:rgba(255,107,107,0.08);}
+
+.chart-box{width:100%;height:240px;}
+
+/* Timeline */
+.timeline{
+  position:relative;padding-left:24px;max-height:260px;overflow-y:auto;
+}
+.timeline::-webkit-scrollbar{width:3px;}
+.timeline::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+.timeline::before{
+  content:'';position:absolute;left:8px;top:0;bottom:0;
+  width:2px;background:linear-gradient(180deg,var(--accent),var(--accent2),var(--accent4));
+}
+.timeline-item{
+  position:relative;padding:8px 0;padding-left:20px;
+}
+.timeline-item::before{
+  content:'';position:absolute;left:-20px;top:12px;
+  width:10px;height:10px;border-radius:50%;background:var(--accent);
+  border:2px solid var(--bg-deep);box-shadow:0 0 8px var(--accent);
+}
+.timeline-item.confirmed::before{background:var(--accent2);box-shadow:0 0 8px var(--accent2);}
+.timeline-item.settled::before{background:var(--accent4);box-shadow:0 0 8px var(--accent4);}
+.timeline-item .tl-time{font-size:10px;color:var(--text-secondary);}
+.timeline-item .tl-title{font-size:12px;color:var(--text-primary);font-weight:600;margin:2px 0;}
+.timeline-item .tl-desc{font-size:10px;color:var(--text-secondary);}
+
+/* Modal Overlay */
+.modal-overlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;
+  background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .3s;
+}
+.modal-overlay.show{opacity:1;pointer-events:auto;}
+.modal{
+  background:var(--bg-panel);border:1px solid var(--accent);
+  border-radius:10px;padding:24px;width:580px;max-height:80vh;overflow-y:auto;
+  box-shadow:0 0 60px rgba(0,200,255,0.2);position:relative;
+}
+.modal::before{
+  content:'';position:absolute;top:-1px;left:5%;right:5%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.modal-close{
+  position:absolute;top:12px;right:16px;
+  background:none;border:none;color:var(--text-secondary);
+  font-size:20px;cursor:pointer;transition:color .3s;
+}
+.modal-close:hover{color:var(--accent3);}
+.modal h3{font-size:18px;margin-bottom:16px;color:var(--accent);}
+.modal .detail-row{
+  display:flex;justify-content:space-between;padding:8px 0;
+  border-bottom:1px solid rgba(0,180,255,0.08);font-size:12px;
+}
+.modal .detail-row .dl{color:var(--text-secondary);}
+.modal .detail-row .dv{color:var(--text-primary);font-weight:500;}
+
+/* Timeline Flow */
+.flow-steps{
+  display:flex;justify-content:center;gap:0;margin:20px 0;
+}
+.flow-step{
+  display:flex;flex-direction:column;align-items:center;position:relative;flex:1;
+}
+.flow-step::after{
+  content:'';position:absolute;top:16px;left:50%;width:100%;height:2px;
+  background:rgba(0,180,255,0.2);
+}
+.flow-step:last-child::after{display:none;}
+.flow-step .step-dot{
+  width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:14px;border:2px solid rgba(0,180,255,0.3);background:rgba(0,20,50,0.8);
+  position:relative;z-index:1;
+}
+.flow-step.active .step-dot{border-color:var(--accent);background:rgba(0,200,255,0.15);box-shadow:0 0 15px rgba(0,200,255,0.4);}
+.flow-step.done .step-dot{border-color:var(--accent2);background:rgba(0,255,136,0.15);box-shadow:0 0 15px rgba(0,255,136,0.3);}
+.flow-step .step-label{font-size:10px;color:var(--text-secondary);margin-top:6px;}
+.flow-step.active .step-label{color:var(--accent);}
+.flow-step.done .step-label{color:var(--accent2);}
+
+@media(max-width:1024px){
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .content-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">V</div>
+      <div>
+        <div class="header-title">结算管理</div>
+        <div class="header-breadcrumb">VPP数字平台 / <span>结算管理</span></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="time" id="liveTime">--:--:--</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card card-revenue">
+      <div class="card-icon">💰</div>
+      <div class="card-value green" id="totalRevenue">¥1,286.5</div>
+      <div class="card-label">本月累计收益 (万元)</div>
+      <div class="card-trend up">▲ 12.8% vs 上月同期</div>
+    </div>
+    <div class="stat-card card-order">
+      <div class="card-icon">📋</div>
+      <div class="card-value blue" id="totalOrders">156</div>
+      <div class="card-label">本月结算单数</div>
+      <div class="card-trend up">▲ 8 单待确认</div>
+    </div>
+    <div class="stat-card card-pending">
+      <div class="card-icon">⏳</div>
+      <div class="card-value orange" id="pendingAmount">¥245.3</div>
+      <div class="card-label">待结算金额 (万元)</div>
+      <div class="card-trend down">▼ 3单待处理</div>
+    </div>
+    <div class="stat-card card-rate">
+      <div class="card-icon">✅</div>
+      <div class="card-value green" id="settleRate">94.8</div>
+      <div class="card-label">结算完成率 (%)</div>
+      <div class="card-trend up">▲ 目标 95%</div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content-grid">
+    <!-- Left: Settlement List -->
+    <div class="panel">
+      <div class="panel-title">📄 结算单列表 <span style="font-size:10px;color:var(--text-secondary);font-weight:normal;">点击行查看详情</span></div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr><th>结算单号</th><th>交易方</th><th>电量(MWh)</th><th>金额(万元)</th><th>结算周期</th><th>结算类型</th><th>状态</th><th>创建时间</th></tr>
+          </thead>
+          <tbody id="settleTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right: Charts -->
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="panel">
+        <div class="panel-title">📈 月度收益趋势</div>
+        <div id="chartRevenue" class="chart-box"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">📊 结算分类占比</div>
+        <div id="chartCategory" class="chart-box" style="height:220px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom: Timeline + Flow + Detail -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div class="panel">
+      <div class="panel-title">🕐 最近结算动态</div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">🔄 结算状态流转演示</div>
+      <div class="flow-steps" id="flowSteps">
+        <div class="flow-step done">
+          <div class="step-dot">📝</div>
+          <div class="step-label">草稿</div>
+        </div>
+        <div class="flow-step active">
+          <div class="step-dot">✅</div>
+          <div class="step-label">已确认</div>
+        </div>
+        <div class="flow-step">
+          <div class="step-dot">💰</div>
+          <div class="step-label">已结算</div>
+        </div>
+        <div class="flow-step">
+          <div class="step-dot">📋</div>
+          <div class="step-label">已归档</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;text-align:center;">
+        <button class="btn" style="margin:4px;" onclick="changeFlow('draft')">📝 设为草稿</button>
+        <button class="btn" style="margin:4px;" onclick="changeFlow('confirmed')">✅ 设为已确认</button>
+        <button class="btn" style="margin:4px;" onclick="changeFlow('settled')">💰 设为已结算</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settlement Detail Tabs -->
+  <div class="panel" style="margin-top:12px;">
+    <div class="panel-title">📊 结算明细展开</div>
+    <div style="display:flex;gap:0;margin-bottom:10px;">
+      <div class="filter-chip active" data-detail="dr" style="border-radius:4px 0 0 4px;">📋 DR 结算</div>
+      <div class="filter-chip" data-detail="ancillary" style="border-radius:0;">🔧 辅助服务结算</div>
+      <div class="filter-chip" data-detail="deviation" style="border-radius:0 4px 4px 0;">📉 偏差考核</div>
+    </div>
+    <div id="detailContent">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">DR 结算明细 · DR-202606-003</div>
+          <div class="detail-row"><span class="dl">基线功率</span><span class="dv">380 MW</span></div>
+          <div class="detail-row"><span class="dl">实际功率</span><span class="dv">310 MW</span></div>
+          <div class="detail-row"><span class="dl">响应量</span><span class="dv" style="color:var(--accent2);">70 MW</span></div>
+          <div class="detail-row"><span class="dl">补贴单价</span><span class="dv">¥1.2 /kWh</span></div>
+          <div class="detail-row"><span class="dl">补贴金额</span><span class="dv" style="color:var(--accent2);font-weight:700;">¥8.4 万</span></div>
+          <div class="detail-row"><span class="dl">考核扣减</span><span class="dv" style="color:var(--accent2);">¥0</span></div>
+          <div class="detail-row"><span class="dl">净补贴</span><span class="dv" style="color:var(--accent2);font-weight:700;">¥8.4 万</span></div>
+        </div>
+        <div id="chartDetail" style="height:150px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== Background ==========
+const canvas=document.getElementById('bgCanvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+const particles=[];
+class P{constructor(){this.reset();}reset(){this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.r=Math.random()*1.5+0.5;this.vx=(Math.random()-0.5)*0.3;this.vy=(Math.random()-0.5)*0.3;this.a=Math.random()*0.4+0.15;}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height)this.reset();}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,200,255,${this.a})`;ctx.fill();}}
+for(let i=0;i<60;i++)particles.push(new P());
+function animateBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='rgba(0,180,255,0.03)';ctx.lineWidth=0.5;
+  for(let x=60;x<canvas.width;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=60;y<canvas.height;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// Clock
+function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});}
+updateTime();setInterval(updateTime,1000);
+
+// ========== Settlement Data ==========
+const settlementData=[
+  {id:'STL-202606-001',party:'国家电网华东分部',energy:12500,amount:186.5,period:'2026-05','status':'settled',type:'电力交易',date:'2026-06-01 09:30'},
+  {id:'STL-202606-002',party:'南方电网调度中心',energy:8200,amount:128.3,period:'2026-05','status':'settled',type:'辅助服务',date:'2026-06-01 10:15'},
+  {id:'STL-202606-003',party:'华能新能源有限公司',energy:5600,amount:92.8,period:'2026-05','status':'confirmed',type:'电力交易',date:'2026-06-01 14:00'},
+  {id:'STL-202606-004',party:'大唐电力交易中心',energy:4200,amount:68.5,period:'2026-05','status':'confirmed',type:'需求响应',date:'2026-06-02 08:30'},
+  {id:'STL-202606-005',party:'华电新能源集团',energy:3800,amount:62.2,period:'2026-06','status':'draft',type:'辅助服务',date:'2026-06-02 09:00'},
+  {id:'STL-202606-006',party:'中广核风电有限公司',energy:7200,amount:115.8,period:'2026-05','status':'draft',type:'电力交易',date:'2026-06-02 10:20'},
+  {id:'STL-202606-007',party:'国家电投集团',energy:3100,amount:55.3,period:'2026-06','status':'draft',type:'需求响应',date:'2026-06-02 11:00'},
+  {id:'STL-202606-008',party:'国网综合能源',energy:4500,amount:78.9,period:'2026-06','status':'disputed',type:'容量补偿',date:'2026-06-02 13:30'},
+];
+
+// ========== Render Table ==========
+const tbody=document.getElementById('settleTableBody');
+function renderTable(){
+  tbody.innerHTML=settlementData.map(s=>{
+    const badgeClass=s.status;
+    const badgeLabel={draft:'草稿',confirmed:'已确认',settled:'已结算',disputed:'争议'}[s.status];
+    const typeColor={'电力交易':'blue','辅助服务':'green','需求响应':'orange','容量补偿':'purple','偏差考核':'red'};
+    const typeClass={'电力交易':'blue','辅助服务':'green','需求响应':'orange','容量补偿':'blue','偏差考核':'red'};
+    return `
+    <tr onclick="openDetail('${s.id}')">
+      <td style="color:var(--accent);">${s.id}</td>
+      <td style="color:var(--text-primary);">${s.party}</td>
+      <td>${s.energy.toLocaleString()}</td>
+      <td style="color:var(--accent2);font-weight:600;">¥${s.amount}</td>
+      <td>${s.period}</td>
+      <td><span class="tag ${typeClass[s.type]||'blue'}">${s.type||'电力交易'}</span></td>
+      <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+      <td>${s.date}</td>
+    </tr>`;
+  }).join('');
+}
+renderTable();
+
+// ========== Detail Modal ==========
+function openDetail(id){
+  const s=settlementData.find(d=>d.id===id);
+  if(!s)return;
+  const statusLabel={draft:'草稿',confirmed:'已确认',settled:'已结算',disputed:'争议'};
+  const steps=['draft','confirmed','settled'];
+  const currentIdx=steps.indexOf(s.status);
+  const flowHTML=steps.map((step,idx)=>{
+    let cls='';
+    if(idx<currentIdx||s.status==='settled'&&idx<=currentIdx)cls='done';
+    else if(idx===currentIdx)cls='active';
+    const icons={draft:'📝',confirmed:'✅',settled:'💰'};
+    return `<div class="flow-step ${cls}"><div class="step-dot">${icons[step]}</div><div class="step-label">${statusLabel[step]}</div></div>`;
+  }).join('');
+
+  document.getElementById('modalContent').innerHTML=`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>${s.id} · 结算详情</h3>
+    <div class="flow-steps">${flowHTML}</div>
+    <div class="detail-row"><span class="dl">交易方</span><span class="dv">${s.party}</span></div>
+    <div class="detail-row"><span class="dl">结算电量</span><span class="dv">${s.energy.toLocaleString()} MWh</span></div>
+    <div class="detail-row"><span class="dl">结算金额</span><span class="dv" style="color:var(--accent2);">¥${s.amount} 万元</span></div>
+    <div class="detail-row"><span class="dl">结算周期</span><span class="dv">${s.period}</span></div>
+    <div class="detail-row"><span class="dl">均价</span><span class="dv">¥${(s.amount*10000/s.energy).toFixed(2)} /MWh</span></div>
+    <div class="detail-row"><span class="dl">当前状态</span><span class="dv"><span class="badge ${s.status}">${statusLabel[s.status]}</span></span></div>
+    <div class="detail-row"><span class="dl">创建时间</span><span class="dv">${s.date}</span></div>
+    <div style="margin-top:16px;display:flex;gap:8px;">
+      ${s.status==='draft'?`<button class="btn primary" onclick="updateStatus('${s.id}','confirmed');closeModal();">✅ 确认结算单</button>
+      <button class="btn" onclick="updateStatus('${s.id}','disputed');closeModal();">⚠️ 标记争议</button>`:''}
+      ${s.status==='confirmed'?`<button class="btn primary" onclick="updateStatus('${s.id}','settled');closeModal();">💰 执行结算</button>`:''}
+      ${s.status==='settled'?`<span style="color:var(--accent2);font-size:12px;">✅ 该结算单已完成</span>`:''}
+      ${s.status==='disputed'?`<button class="btn" onclick="updateStatus('${s.id}','draft');closeModal();">📝 返回草稿</button>
+      <span style="color:var(--accent3);font-size:12px;">⚠️ 争议处理中</span>`:''}
+    </div>
+  `;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
+document.getElementById('modalOverlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+function updateStatus(id,status){
+  const s=settlementData.find(d=>d.id===id);
+  if(s){s.status=status;renderTable();}
+}
+
+// ========== Flow Demo ==========
+function changeFlow(stage){
+  const steps=document.querySelectorAll('#flowSteps .flow-step');
+  const stages=['draft','confirmed','settled','done'];
+  const idx=stages.indexOf(stage);
+  steps.forEach((step,i)=>{
+    step.classList.remove('active','done');
+    if(i<idx)step.classList.add('done');
+    else if(i===idx)step.classList.add('active');
+  });
+  // Update last step
+  if(stage==='settled'){
+    steps[3].classList.add('done');
+    steps[3].querySelector('.step-dot').textContent='📋';
+  }
+}
+
+// ========== Charts ==========
+const chartRevenue=echarts.init(document.getElementById('chartRevenue'));
+chartRevenue.setOption({
+  tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+  grid:{left:50,right:20,top:10,bottom:25},
+  xAxis:{type:'category',data:['1月','2月','3月','4月','5月','6月'],axisLabel:{color:'#7eb8da',fontSize:9}},
+  yAxis:{type:'value',name:'万元',splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da'}},
+  series:[{
+    type:'bar',data:[980,1020,1150,1280,1350,1420],barWidth:20,
+    itemStyle:{borderRadius:[4,4,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#00d4ff'},{offset:1,color:'rgba(0,212,255,0.2)'}])},
+    label:{show:true,position:'top',color:'#7eb8da',fontSize:9}
+  },{
+    type:'line',data:[950,1000,1120,1250,1320,1400],smooth:true,
+    lineStyle:{color:'#ffaa00',width:2,type:'dashed'},symbol:'none',
+    name:'预测'
+  }],
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:9}}
+});
+
+const chartCategory=echarts.init(document.getElementById('chartCategory'));
+chartCategory.setOption({
+  tooltip:{trigger:'item'},
+  series:[{
+    type:'pie',radius:['50%','72%'],center:['50%','55%'],
+    data:[
+      {value:42,name:'电力交易',itemStyle:{color:'#00d4ff'}},
+      {value:25,name:'辅助服务',itemStyle:{color:'#00ff88'}},
+      {value:16,name:'需求响应',itemStyle:{color:'#ffaa00'}},
+      {value:9,name:'容量补偿',itemStyle:{color:'#b482ff'}},
+      {value:8,name:'偏差考核',itemStyle:{color:'#ff6b6b'}},
+    ],
+    label:{color:'#7eb8da',fontSize:9},
+    emphasis:{label:{fontSize:14,fontWeight:'bold'}}
+  }]
+});
+
+// ========== Timeline ==========
+const timelineEvents=[
+  {time:'14:30',title:'STL-202606-005 确认为已确认',desc:'华电新能源集团 · ¥62.2万 · 3,800 MWh',status:'confirmed'},
+  {time:'11:00',title:'STL-202606-007 创建新结算单',desc:'国家电投集团 · ¥55.3万 · 3,100 MWh',status:'draft'},
+  {time:'10:20',title:'STL-202606-006 创建新结算单',desc:'中广核风电有限公司 · ¥115.8万 · 7,200 MWh',status:'draft'},
+  {time:'09:00',title:'STL-202606-005 创建新结算单',desc:'华电新能源集团 · ¥62.2万 · 3,800 MWh',status:'draft'},
+  {time:'昨日 14:00',title:'STL-202606-003 确认结算单',desc:'华能新能源有限公司 · ¥92.8万 · 5,600 MWh',status:'confirmed'},
+  {time:'昨日 10:15',title:'STL-202606-002 已完成结算',desc:'南方电网调度中心 · ¥128.3万 · 8,200 MWh',status:'settled'},
+  {time:'昨日 09:30',title:'STL-202606-001 已完成结算',desc:'国家电网华东分部 · ¥186.5万 · 12,500 MWh',status:'settled'},
+];
+const timeline=document.getElementById('timeline');
+timeline.innerHTML=timelineEvents.map(e=>`
+  <div class="timeline-item ${e.status}">
+    <div class="tl-time">${e.time}</div>
+    <div class="tl-title">${e.title}</div>
+    <div class="tl-desc">${e.desc}</div>
+  </div>
+`).join('');
+
+// ========== Number Animation ==========
+function animateNumber(el,target,duration=1500,suffix=''){
+  const start=parseFloat(el.textContent.replace(/[^0-9.]/g,''))||0;
+  const startTime=performance.now();
+  function update(now){
+    const elapsed=now-startTime;
+    const progress=Math.min(elapsed/duration,1);
+    const eased=1-Math.pow(1-progress,3);
+    const current=(start+(target-start)*eased);
+    el.textContent=(Number.isInteger(target)?Math.round(current).toLocaleString():current.toFixed(1))+suffix;
+    if(progress<1)requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+// ========== Settlement Detail Tab Switch ==========
+document.querySelectorAll('.filter-chip[data-detail]').forEach(chip=>{
+  chip.addEventListener('click',function(){
+    document.querySelectorAll('.filter-chip[data-detail]').forEach(c=>c.classList.remove('active'));
+    this.classList.add('active');
+    const type=this.dataset.detail;
+    const el=document.getElementById('detailContent');
+    const contents={
+      dr:`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">DR 结算明细 · DR-202606-003</div>
+        <div class="detail-row"><span class="dl">基线功率</span><span class="dv">380 MW</span></div>
+        <div class="detail-row"><span class="dl">实际功率</span><span class="dv">310 MW</span></div>
+        <div class="detail-row"><span class="dl">响应量</span><span class="dv" style="color:var(--accent2);">70 MW</span></div>
+        <div class="detail-row"><span class="dl">补贴单价</span><span class="dv">¥1.2 /kWh</span></div>
+        <div class="detail-row"><span class="dl">补贴金额</span><span class="dv" style="color:var(--accent2);font-weight:700;">¥8.4 万</span></div>
+        <div class="detail-row"><span class="dl">考核扣减</span><span class="dv" style="color:var(--accent2);">¥0</span></div>
+        <div class="detail-row"><span class="dl">净补贴</span><span class="dv" style="color:var(--accent2);font-weight:700;">¥8.4 万</span></div></div>
+        <div id="chartDetail"></div></div>`,
+      ancillary:`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">辅助服务结算 · 6月累计</div>
+        <div class="detail-row"><span class="dl">调频容量</span><span class="dv">52 MW · ¥18.6万</span></div>
+        <div class="detail-row"><span class="dl">调频里程</span><span class="dv">12,800 MW · ¥36.5万</span></div>
+        <div class="detail-row"><span class="dl">旋转备用</span><span class="dv">38 MW · ¥8.2万</span></div>
+        <div class="detail-row"><span class="dl">无功调压</span><span class="dv">25 MVar · ¥3.8万</span></div>
+        <div class="detail-row"><span class="dl" style="font-weight:700;">合计</span><span class="dv" style="color:var(--accent2);font-weight:700;">¥67.1 万</span></div></div>
+        <div id="chartDetail"></div></div>`,
+      deviation:`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">偏差考核 · 本月统计</div>
+        <div class="detail-row"><span class="dl">计划功率</span><span class="dv">138 MW</span></div>
+        <div class="detail-row"><span class="dl">实际功率</span><span class="dv">142 MW</span></div>
+        <div class="detail-row"><span class="dl">偏差量</span><span class="dv" style="color:var(--accent2);">+4 MW (+2.9%)</span></div>
+        <div class="detail-row"><span class="dl">考核阈值</span><span class="dv">±20%</span></div>
+        <div class="detail-row"><span class="dl">考核扣款</span><span class="dv" style="color:var(--accent2);">¥0 (达标)</span></div>
+        <div class="detail-row"><span class="dl">上月考核扣款</span><span class="dv" style="color:var(--accent3);">-¥8.2 万</span></div>
+        <div class="detail-row"><span class="dl" style="font-weight:700;">本月考核合计</span><span class="dv" style="color:var(--accent2);font-weight:700;">-¥3.6 万</span></div></div>
+        <div id="chartDetail"></div></div>`
+    };
+    el.innerHTML=contents[type];
+    renderDetailChart(type);
+  });
+});
+
+function renderDetailChart(type){
+  const el=document.getElementById('chartDetail');
+  if(!el)return;
+  // Dispose existing instance to avoid duplicates
+  const existing=echarts.getInstanceByDom(el);
+  if(existing)existing.dispose();
+  const c=echarts.init(el);
+  if(type==='dr'){
+    c.setOption({
+      tooltip:{trigger:'axis'},
+      grid:{left:40,right:10,top:8,bottom:20},
+      xAxis:{type:'category',data:['08:00','09:00','10:00','11:00','12:00'],axisLabel:{color:'#7eb8da',fontSize:8}},
+      yAxis:{type:'value',name:'MW',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+      series:[
+        {name:'基线',type:'line',data:[350,380,400,380,360],lineStyle:{color:'#7eb8da',width:2,type:'dashed'},symbol:'none'},
+        {name:'实际',type:'line',data:[340,310,300,310,330],lineStyle:{color:'#00d4ff',width:2.5},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,212,255,0.2)'},{offset:1,color:'rgba(0,212,255,0.01)'}]}},symbol:'none'},
+      ],
+      legend:{show:false}
+    });
+  }else if(type==='ancillary'){
+    c.setOption({
+      tooltip:{trigger:'item'},
+      series:[{type:'pie',radius:['45%','72%'],data:[
+        {value:36.5,name:'调频里程',itemStyle:{color:'#00d4ff'}},
+        {value:18.6,name:'调频容量',itemStyle:{color:'#00ff88'}},
+        {value:8.2,name:'旋转备用',itemStyle:{color:'#ffaa00'}},
+        {value:3.8,name:'无功调压',itemStyle:{color:'#b482ff'}},
+      ],label:{color:'#7eb8da',fontSize:9}}]
+    });
+  }else{
+    c.setOption({
+      tooltip:{trigger:'axis'},
+      grid:{left:40,right:10,top:8,bottom:20},
+      xAxis:{type:'category',data:['06/01','06/02','06/03','06/04','06/05','06/06','06/07'],axisLabel:{color:'#7eb8da',fontSize:8}},
+      yAxis:{type:'value',name:'%',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+      series:[
+        {name:'偏差率',type:'line',data:[3.2,2.8,3.5,4.2,2.5,1.8,2.2],lineStyle:{color:'#00d4ff',width:2},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,212,255,0.2)'},{offset:1,color:'rgba(0,212,255,0.01)'}]}},symbol:'none'},
+        {name:'上限+5%',type:'line',data:Array(7).fill(5),lineStyle:{color:'rgba(255,170,0,0.3)',type:'dashed',width:1},symbol:'none'},
+      ],
+      legend:{show:false}
+    });
+  }
+}
+renderDetailChart('dr');
+
+window.addEventListener('resize',()=>{chartRevenue.resize();chartCategory.resize();});
+</script>
+</body>
+</html>

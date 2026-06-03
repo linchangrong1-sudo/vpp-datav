@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>需求响应事件管理 - VPP 虚拟电厂</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg-deep:#0a0e27;--bg-panel:rgba(6,30,60,0.75);
+  --border-glow:rgba(0,200,255,0.35);--accent:#00d4ff;
+  --accent2:#00ff88;--accent3:#ff6b6b;--accent4:#ffaa00;
+  --text-primary:#e0f0ff;--text-secondary:#7eb8da;
+  --glow-soft:0 0 20px rgba(0,180,255,0.15);
+  --glow-strong:0 0 30px rgba(0,200,255,0.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg-deep);color:var(--text-primary);
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+  height:100vh;overflow:hidden;
+}
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+.container{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;padding:12px 16px;}
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:10px;border-bottom:1px solid rgba(0,200,255,0.2);
+  flex-shrink:0;margin-bottom:10px;
+}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-logo{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),#0066ff);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:#fff;box-shadow:var(--glow-strong);}
+.header-title{font-size:18px;font-weight:700;letter-spacing:2px;}
+.header-breadcrumb{font-size:12px;color:var(--text-secondary);}
+.header-breadcrumb span{color:var(--accent);cursor:pointer;}
+.header-breadcrumb span:hover{text-decoration:underline;}
+.header-right{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-secondary);}
+.header-right .time{font-size:22px;font-weight:700;font-family:'Consolas',monospace;color:#e0f0ff;}
+.header-right .live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.body{flex:1;display:flex;gap:12px;min-height:0;}
+/* Left panel */
+.left-panel{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;}
+.stat-card{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:14px 16px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);text-align:center;
+}
+.stat-card::before{content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.stat-card .big-num{font-size:36px;font-weight:700;font-family:'Consolas',monospace;line-height:1.2;}
+.stat-card .big-num.red{color:var(--accent3);text-shadow:0 0 20px rgba(255,107,107,0.4);}
+.stat-card .big-num.green{color:var(--accent2);text-shadow:0 0 20px rgba(0,255,136,0.4);}
+.stat-card .big-num.blue{color:var(--accent);text-shadow:0 0 20px rgba(0,212,255,0.4);}
+.stat-card .big-num.orange{color:var(--accent4);text-shadow:0 0 20px rgba(255,170,0,0.4);}
+.stat-card .stat-label{font-size:11px;color:var(--text-secondary);margin-top:4px;}
+.stat-card .stat-sub{font-size:10px;color:var(--text-secondary);margin-top:2px;}
+/* Main content */
+.main-content{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
+/* Filter */
+.filter-bar{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;
+  flex-shrink:0;backdrop-filter:blur(8px);position:relative;
+}
+.filter-bar::before{content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.filter-group{display:flex;align-items:center;gap:6px;}
+.filter-label{font-size:11px;color:var(--text-secondary);white-space:nowrap;}
+.filter-chip{
+  padding:4px 12px;border:1px solid rgba(0,200,255,0.25);border-radius:12px;
+  font-size:11px;color:var(--text-secondary);cursor:pointer;transition:all .3s;
+  background:rgba(0,20,50,0.4);
+}
+.filter-chip:hover{border-color:var(--accent);color:var(--text-primary);}
+.filter-chip.active{border-color:var(--accent);color:var(--accent);background:rgba(0,200,255,0.12);box-shadow:0 0 8px rgba(0,200,255,0.2);}
+.filter-chip.active.danger{border-color:var(--accent3);color:var(--accent3);background:rgba(255,107,107,0.12);}
+/* Content split */
+.content-split{flex:1;display:flex;gap:10px;min-height:0;}
+.content-left{flex:1.2;display:flex;flex-direction:column;gap:10px;min-width:0;}
+.content-right{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
+/* Panel */
+.panel{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:12px 14px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+}
+.panel::before{content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.panel-title{font-size:13px;font-weight:700;margin-bottom:8px;padding-left:10px;border-left:3px solid var(--accent);display:flex;align-items:center;gap:6px;}
+.chart-box{width:100%;height:100%;min-height:160px;}
+/* Table */
+.table-wrap{overflow-x:auto;flex:1;}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+thead th{background:rgba(0,180,255,0.08);padding:7px 10px;text-align:left;color:var(--accent);font-weight:600;border-bottom:1px solid var(--border-glow);white-space:nowrap;}
+tbody td{padding:7px 10px;border-bottom:1px solid rgba(0,180,255,0.06);color:var(--text-secondary);}
+tbody tr{transition:all .3s;cursor:pointer;}
+tbody tr:hover{background:rgba(0,200,255,0.06);}
+tbody tr:hover td{color:var(--text-primary);}
+tbody tr.active{background:rgba(0,200,255,0.1);border-left:3px solid var(--accent);}
+/* Badges */
+.badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;white-space:nowrap;}
+.badge.invited{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.08);border:1px solid var(--accent);}
+.badge.urgent{border-color:var(--accent3);color:var(--accent3);background:rgba(255,107,107,0.08);border:1px solid var(--accent3);}
+.badge.real{border-color:var(--accent4);color:var(--accent4);background:rgba(255,170,0,0.08);border:1px solid var(--accent4);}
+.badge.peak{border-color:var(--accent2);color:var(--accent2);background:rgba(0,255,136,0.08);border:1px solid var(--accent2);}
+.badge.valley{border-color:#b482ff;color:#b482ff;background:rgba(180,130,255,0.08);border:1px solid #b482ff;}
+.badge.pending{border-color:var(--accent4);color:var(--accent4);background:rgba(255,170,0,0.08);border:1px solid var(--accent4);}
+.badge.executing{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.08);border:1px solid var(--accent);}
+.badge.completed{border-color:var(--accent2);color:var(--accent2);background:rgba(0,255,136,0.08);border:1px solid var(--accent2);}
+.badge.settled{border-color:#7eb8da;color:#7eb8da;background:rgba(126,184,218,0.08);border:1px solid #7eb8da;}
+/* M&V Panel */
+.mv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;}
+.mv-item{background:rgba(0,180,255,0.04);border:1px solid rgba(0,180,255,0.1);border-radius:6px;padding:8px 10px;text-align:center;}
+.mv-item .mv-label{font-size:9px;color:var(--text-secondary);margin-bottom:2px;}
+.mv-item .mv-value{font-size:18px;font-weight:700;font-family:'Consolas',monospace;}
+.mv-item .mv-value.pass{color:var(--accent2);}
+.mv-item .mv-value.fail{color:var(--accent3);}
+.mv-item .mv-sub{font-size:9px;color:var(--text-secondary);margin-top:2px;}
+/* Detail row */
+.detail-row{display:flex;justify-content:space-between;padding:4px 0;font-size:11px;border-bottom:1px solid rgba(0,180,255,0.05);}
+.detail-row .dl{color:var(--text-secondary);}
+.detail-row .dv{color:var(--text-primary);font-weight:500;}
+/* Scroll */
+.scroll-y{overflow-y:auto;}
+.scroll-y::-webkit-scrollbar{width:4px;}
+.scroll-y::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">V</div>
+      <div>
+        <div class="header-title">需求响应事件管理</div>
+        <div class="header-breadcrumb">VPP数字平台 / <span onclick="location.href='index.html'">首页</span> / <span>需求响应</span></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-dot"></div><span>运行中</span>
+      <span>|</span>
+      <span>👤 调度员 · 张三</span>
+      <span class="time" id="liveTime">--:--:--</span>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <!-- Left Stats -->
+    <div class="left-panel">
+      <div class="stat-card">
+        <div class="big-num orange" id="activeEvents">2</div>
+        <div class="stat-label">🔴 进行中事件</div>
+        <div class="stat-sub">当前生效 · 需持续关注</div>
+      </div>
+      <div class="stat-card">
+        <div class="big-num green" id="monthDone">18</div>
+        <div class="stat-label">✅ 本月已完成</div>
+        <div class="stat-sub">较上月 ↑ 22.4%</div>
+      </div>
+      <div class="stat-card">
+        <div class="big-num blue" id="totalSubsidy">¥38.6</div>
+        <div class="stat-label">💰 累计补贴收益</div>
+        <div class="stat-sub">万元 · 本年度</div>
+      </div>
+      <div class="stat-card">
+        <div class="big-num green" id="avgRate">95.8</div>
+        <div class="stat-label">📊 平均响应率</div>
+        <div class="stat-sub">% · 目标 ≥ 90%</div>
+      </div>
+      <div class="stat-card" style="padding:8px;">
+        <div id="chartPieRate" class="chart-box" style="height:120px;"></div>
+      </div>
+      <div class="stat-card" style="flex:1;padding:8px;">
+        <div class="panel-title" style="font-size:11px;margin-bottom:4px;">📋 基线算法信息</div>
+        <div style="font-size:10px;color:var(--text-secondary);">
+          <div class="detail-row"><span class="dl">算法</span><span class="dv">X of 10</span></div>
+          <div class="detail-row"><span class="dl">筛选天数</span><span class="dv">前 10 天中选 5 天</span></div>
+          <div class="detail-row"><span class="dl">窗口调整</span><span class="dv">30min 前调整</span></div>
+          <div class="detail-row"><span class="dl">基线版本</span><span class="dv">v2.1</span></div>
+          <div class="detail-row"><span class="dl">更新时间</span><span class="dv">每日 00:00</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Filter -->
+      <div class="filter-bar">
+        <div class="filter-group">
+          <span class="filter-label">事件类型:</span>
+          <div class="filter-chip active" data-filter="all">全部</div>
+          <div class="filter-chip" data-filter="invited">邀约</div>
+          <div class="filter-chip danger" data-filter="urgent">紧急</div>
+          <div class="filter-chip" data-filter="real">实时</div>
+          <div class="filter-chip" data-filter="peak">削峰</div>
+          <div class="filter-chip" data-filter="valley">填谷</div>
+        </div>
+        <div style="flex:1;"></div>
+        <button class="filter-chip active" onclick="showToast('info','新 DR 事件创建功能开发中')" style="border-color:var(--accent2);color:var(--accent2);">➕ 新建事件</button>
+      </div>
+
+      <!-- Content Split -->
+      <div class="content-split">
+        <!-- Left: Event Table -->
+        <div class="content-left">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-title">📋 DR 事件列表 <span style="font-size:10px;color:var(--text-secondary);">共 <span id="eventTotal">8</span> 条</span></div>
+            <div class="table-wrap scroll-y">
+              <table>
+                <thead>
+                  <tr><th>编号</th><th>类型</th><th>目标(MW)</th><th>响应(MW)</th><th>补贴(元/kWh)</th><th>补贴(万元)</th><th>开始</th><th>结束</th><th>状态</th></tr>
+                </thead>
+                <tbody id="eventTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Detail Panel -->
+        <div class="content-right">
+          <!-- M&V Panel -->
+          <div class="panel" style="flex:0 0 auto;">
+            <div class="panel-title">📊 基线 vs 实际功率 <span style="font-size:10px;color:var(--text-secondary);">选中事件: <span id="selectedEvent">DR-202606-003</span></span></div>
+            <div id="chartBaseline" class="chart-box" style="height:180px;"></div>
+          </div>
+          <div class="panel" style="flex:0 0 auto;">
+            <div class="panel-title">🔬 M&V 验证结果</div>
+            <div class="mv-grid">
+              <div class="mv-item"><div class="mv-label">基线功率</div><div class="mv-value" id="mvBaseline">380</div><div class="mv-sub">MW</div></div>
+              <div class="mv-item"><div class="mv-label">实际功率</div><div class="mv-value" id="mvActual">310</div><div class="mv-sub">MW</div></div>
+              <div class="mv-item"><div class="mv-label">目标削减</div><div class="mv-value" id="mvTarget">80</div><div class="mv-sub">MW</div></div>
+              <div class="mv-item"><div class="mv-label">实际响应</div><div class="mv-value pass" id="mvResponse">70</div><div class="mv-sub">MW · 响应率 87.5%</div></div>
+            </div>
+            <div style="display:flex;gap:8px;font-size:11px;">
+              <div style="flex:1;padding:6px 10px;border-radius:4px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);color:var(--accent2);text-align:center;">达标 · 补贴 ¥8.4万</div>
+              <div style="flex:1;padding:6px 10px;border-radius:4px;background:rgba(0,180,255,0.04);border:1px solid rgba(0,180,255,0.1);color:var(--text-secondary);text-align:center;">考核扣减: ¥0</div>
+            </div>
+          </div>
+          <div class="panel" style="flex:1;">
+            <div class="panel-title">📈 DR 补贴月度趋势</div>
+            <div id="chartTrend" class="chart-box" style="height:130px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== Background ==========
+const canvas=document.getElementById('bgCanvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+const particles=[];
+class P{constructor(){this.reset();}reset(){this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.r=Math.random()*1.5+0.5;this.vx=(Math.random()-0.5)*0.3;this.vy=(Math.random()-0.5)*0.3;this.a=Math.random()*0.4+0.15;}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height)this.reset();}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,200,255,${this.a})`;ctx.fill();}}
+for(let i=0;i<60;i++)particles.push(new P());
+function animateBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='rgba(0,180,255,0.03)';ctx.lineWidth=0.5;
+  for(let x=60;x<canvas.width;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=60;y<canvas.height;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// ========== Clock ==========
+function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});}
+updateTime();setInterval(updateTime,1000);
+
+// ========== Toast ==========
+function showToast(type,msg){
+  const t=document.getElementById('toast')||(()=>{const d=document.createElement('div');d.id='toast';d.style.cssText='position:fixed;top:20px;right:20px;z-index:200;padding:12px 24px;border-radius:6px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-20px);transition:all .4s;pointer-events:none;';document.body.appendChild(d);return d;})();
+  const colors={success:'rgba(0,255,136,0.12)',error:'rgba(255,107,107,0.12)',info:'rgba(0,200,255,0.12)'};
+  const borders={success:'var(--accent2)',error:'var(--accent3)',info:'var(--accent)'};
+  t.style.background=colors[type]||colors.info;t.style.border='1px solid '+(borders[type]||borders.info);
+  t.style.color=borders[type]||borders.info;t.textContent=msg;t.style.opacity='1';t.style.transform='translateY(0)';
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(-20px)';},3000);
+}
+
+// ========== DR Event Data ==========
+const eventData=[
+  {id:'DR-202606-001',type:'invited',typeName:'邀约',target:100,response:92,price:1.2,subsidy:11.04,start:'06-03 08:00',end:'06-03 10:00',status:'settled',statusName:'已结算'},
+  {id:'DR-202606-002',type:'urgent',typeName:'紧急',target:150,response:138,price:2.5,subsidy:34.50,start:'06-02 14:00',end:'06-02 15:30',status:'completed',statusName:'已完成'},
+  {id:'DR-202606-003',type:'invited',typeName:'邀约',target:80,response:70,price:1.2,subsidy:8.40,start:'06-02 10:00',end:'06-02 12:00',status:'completed',statusName:'已完成'},
+  {id:'DR-202606-004',type:'real',typeName:'实时',target:60,response:55,price:3.0,subsidy:16.50,start:'06-01 19:00',end:'06-01 20:00',status:'settled',statusName:'已结算'},
+  {id:'DR-202606-005',type:'peak',typeName:'削峰',target:200,response:185,price:1.8,subsidy:33.30,start:'06-01 16:00',end:'06-01 18:00',status:'completed',statusName:'已完成'},
+  {id:'DR-202606-006',type:'valley',typeName:'填谷',target:120,response:108,price:0.8,subsidy:8.64,start:'06-01 02:00',end:'06-01 04:00',status:'settled',statusName:'已结算'},
+  {id:'DR-202606-007',type:'urgent',typeName:'紧急',target:180,response:160,price:2.5,subsidy:40.00,start:'06-03 13:00',end:'06-03 14:30',status:'executing',statusName:'执行中'},
+  {id:'DR-202606-008',type:'invited',typeName:'邀约',target:90,response:0,price:1.2,subsidy:0,start:'06-03 15:00',end:'06-03 17:00',status:'pending',statusName:'待响应'},
+];
+let currentFilter='all';
+let currentEvent=eventData[2]; // default to DR-202606-003
+
+// Type badge class
+const badgeType={invited:'badge invited',urgent:'badge urgent',real:'badge real',peak:'badge peak',valley:'badge valley'};
+const badgeStatus={pending:'badge pending',executing:'badge executing',completed:'badge completed',settled:'badge settled'};
+
+// ========== Render Table ==========
+function renderTable(){
+  const tbody=document.getElementById('eventTableBody');
+  const filtered=currentFilter==='all'?eventData:eventData.filter(e=>e.type===currentFilter);
+  document.getElementById('eventTotal').textContent=filtered.length;
+  tbody.innerHTML=filtered.map(e=>{
+    const isActive=e.id===currentEvent.id;
+    return `<tr class="${isActive?'active':''}" data-id="${e.id}">
+      <td style="color:var(--accent);font-weight:600;">${e.id}</td>
+      <td><span class="${badgeType[e.type]}">${e.typeName}</span></td>
+      <td>${e.target}</td>
+      <td style="color:var(--accent2);font-weight:600;">${e.response||'--'}</td>
+      <td>¥${e.price}</td>
+      <td>${e.subsidy>0?'¥'+e.subsidy.toFixed(2):'--'}</td>
+      <td>${e.start}</td>
+      <td>${e.end}</td>
+      <td><span class="${badgeStatus[e.status]}">${e.statusName}</span></td>
+    </tr>`;
+  }).join('');
+  // Click handler
+  tbody.querySelectorAll('tr').forEach(row=>{
+    row.addEventListener('click',function(){
+      const id=this.dataset.id;
+      const evt=eventData.find(e=>e.id===id);
+      if(evt){currentEvent=evt;renderTable();updateDetail(evt);}
+    });
+  });
+}
+
+// ========== Detail Panel ==========
+function updateDetail(e){
+  document.getElementById('selectedEvent').textContent=e.id;
+  // M&V values
+  const baseline=Math.round(e.target*1.25);
+  const actual=e.response>0?e.response:0;
+  const target=e.target;
+  const mvResponse=actual;
+  const rate=target>0?Math.round(mvResponse/target*100):0;
+  document.getElementById('mvBaseline').textContent=baseline;
+  document.getElementById('mvActual').textContent=baseline-actual||'--';
+  document.getElementById('mvTarget').textContent=target;
+  document.getElementById('mvResponse').textContent=mvResponse;
+  document.getElementById('mvResponse').className=`mv-value ${rate>=80?'pass':'fail'}`;
+  // Update baseline chart
+  updateBaselineChart(e);
+}
+function updateBaselineChart(e){
+  const el=document.getElementById('chartBaseline');
+  if(!el)return;
+  const c=echarts.getInstanceByDom(el)||echarts.init(el);
+  const hours=Array.from({length:24},(_,i)=>`${i}:00`);
+  // Simulate baseline curve (smooth sine-based)
+  const base=hours.map((_,i)=>Math.round(250+150*Math.sin((i-6)/24*2*Math.PI)+Math.random()*20));
+  const actual=hours.map((_,i)=>Math.round(base[i]*((i>=8&&i<=12)?0.78:(i>=14&&i<=16)?0.82:(i>=19&&i<=20)?0.85:0.95)+Math.random()*10));
+  const targetLine=hours.map((_,i)=>Math.round(base[i]*((i>=8&&i<=12)?(1-e.target/400):(i>=14&&i<=16)?(1-e.target/500):1)));
+  const highlightStart=8,highlightEnd=12;
+  c.setOption({
+    tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff',textStyle:{color:'#e0f0ff'}},
+    legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:9},itemWidth:12,itemHeight:8},
+    grid:{left:50,right:20,top:8,bottom:28},
+    xAxis:{type:'category',data:hours,axisLabel:{color:'#7eb8da',fontSize:8,interval:3},axisLine:{lineStyle:{color:'rgba(0,180,255,0.2)'}}},
+    yAxis:{type:'value',name:'MW',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+    visualMap:{show:false,dimension:0,pieces:[{min:highlightStart,max:highlightEnd,color:'rgba(255,107,107,0.15)'}],inRange:{color:['rgba(255,107,107,0.15)']}},
+    series:[
+      {name:'基线功率',type:'line',smooth:true,data:base,lineStyle:{color:'#7eb8da',width:2,type:'dashed'},symbol:'none'},
+      {name:'实际功率',type:'line',smooth:true,data:actual,lineStyle:{color:'#00d4ff',width:2.5},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,212,255,0.25)'},{offset:1,color:'rgba(0,212,255,0.02)'}]}},symbol:'none'},
+      {name:'目标功率',type:'line',smooth:true,data:targetLine,lineStyle:{color:'#ffaa00',width:1.5,type:'dotted'},symbol:'none'},
+      {name:'DR窗口',type:'bar',data:hours.map((_,i)=>i>=highlightStart&&i<=highlightEnd?480:0),barWidth:'99%',itemStyle:{color:'rgba(255,107,107,0.06)',borderRadius:[0,0,0,0]},silent:true},
+    ]
+  },true);
+}
+
+// ========== Pie Rate ==========
+const chartPie=echarts.init(document.getElementById('chartPieRate'));
+chartPie.setOption({
+  tooltip:{trigger:'item'},
+  series:[{
+    type:'pie',radius:['50%','75%'],center:['50%','50%'],
+    data:[
+      {value:85,name:'响应达标',itemStyle:{color:'#00ff88'}},
+      {value:10,name:'欠响应',itemStyle:{color:'#ffaa00'}},
+      {value:5,name:'未响应',itemStyle:{color:'#ff6b6b'}},
+    ],
+    label:{show:false},
+    emphasis:{label:{show:true,color:'#e0f0ff',fontSize:11}}
+  }]
+});
+
+// ========== DR Subsidy Monthly Trend ==========
+const chartTrend=echarts.init(document.getElementById('chartTrend'));
+chartTrend.setOption({
+  tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+  grid:{left:55,right:20,top:8,bottom:26},
+  xAxis:{type:'category',data:['1月','2月','3月','4月','5月','6月'],axisLabel:{color:'#7eb8da',fontSize:8}},
+  yAxis:{type:'value',name:'万元',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+  series:[{
+    type:'bar',data:[22,28,35,42,48,52],barWidth:16,
+    itemStyle:{borderRadius:[4,4,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#00ff88'},{offset:1,color:'rgba(0,255,136,0.2)'}])},
+    label:{show:true,position:'top',color:'#7eb8da',fontSize:8,formatter:'{c}万'}
+  },{
+    type:'line',data:[20,26,32,40,46,50],smooth:true,
+    lineStyle:{color:'#ffaa00',width:1.5,type:'dashed'},symbol:'none',
+    name:'预期'
+  }],
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:9}}
+});
+
+// ========== Filters ==========
+document.querySelectorAll('.filter-chip[data-filter]').forEach(chip=>{
+  chip.addEventListener('click',function(){
+    document.querySelectorAll('.filter-chip[data-filter]').forEach(c=>c.classList.remove('active'));
+    this.classList.add('active');
+    currentFilter=this.dataset.filter;
+    renderTable();
+  });
+});
+
+// ========== Init ==========
+renderTable();
+updateDetail(currentEvent);
+
+// Resize
+window.addEventListener('resize',()=>{
+  [chartPie,chartTrend].forEach(c=>c.resize());
+  const bc=document.getElementById('chartBaseline');
+  if(bc){const inst=echarts.getInstanceByDom(bc);if(inst)inst.resize();}
+});
+</script>
+</body>
+</html>

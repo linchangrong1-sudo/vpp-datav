@@ -1,0 +1,194 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]: PORTFOLIO
+    - heading "VPP 虚拟电厂平台" [level=1] [ref=e4]
+    - heading "虚拟电厂运营管理 · 数字大屏 · 全流程闭环" [level=2] [ref=e5]
+    - generic [ref=e7]:
+      - text: 产品需求文档（PRD）· UI 设计说明
+      - text: DataV 数字大屏 · 6 大业务模块 · 11 个页面
+      - text: 技术栈：HTML5 / ECharts 5.5 / CSS3 DataV 风格
+      - text: 参考标准：GB/T 40613-2021 / GB/T 44241-2024
+    - generic [ref=e8]: VPP Virtual Power Plant — Operations Management Platform
+  - generic [ref=e9]:
+    - generic [ref=e10]: 📋 项目概览
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - heading "🎯 项目定位" [level=4] [ref=e13]
+        - paragraph [ref=e14]: 面向聚合商、电网调度、交易中心的 VPP 核心运营平台，完整覆盖资源聚合 → 能力评估 → 市场参与 → 调度执行 → 结算归档的全运营闭环。
+      - generic [ref=e15]:
+        - heading "👥 用户角色" [level=4] [ref=e16]
+        - list [ref=e17]:
+          - listitem [ref=e18]: • 系统管理员（权限/审计）
+          - listitem [ref=e19]: • 聚合商运营（资源/运维）
+          - listitem [ref=e20]: • 电网调度（监控/指令/告警）
+          - listitem [ref=e21]: • 交易人员（报价/收益）
+          - listitem [ref=e22]: • 资源业主（数据查看）
+          - listitem [ref=e23]: • 财务（结算/对账）
+    - generic [ref=e24]: 🏗️ 系统架构
+    - generic [ref=e25]: ┌─────────────────────────────────────────────────────┐ │ ④ 应用层：电力市场交易 / 电网调度 / 需求响应 │ ├─────────────────────────────────────────────────────┤ │ ③ 平台层（VPP核心）：资源聚合 / 负荷预测 / │ │ 优化调度 / 市场交易 / 安全防护 │ ├─────────────────────────────────────────────────────┤ │ ② 通信层：IEC 104 / MQTT / Modbus / DL/T 645 │ │ 纵向加密 / 主备冗余 / 断网续传 │ ├─────────────────────────────────────────────────────┤ │ ① 资源层：光伏 / 风电 / 储能 / 充电桩 / 可控负荷 │ └─────────────────────────────────────────────────────┘
+    - generic [ref=e26]: 11 个页面 · 6 大功能模块
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - heading "📊 调度与监控" [level=4] [ref=e29]
+        - paragraph [ref=e30]: 调度大屏 · 资源监控 · 实时总览 · 告警中心
+      - generic [ref=e31]:
+        - heading "🎯 控制与执行" [level=4] [ref=e32]
+        - paragraph [ref=e33]: 调度工作站 · DR事件响应 · 调频辅助服务
+      - generic [ref=e34]:
+        - heading "📈 电力市场" [level=4] [ref=e35]
+        - paragraph [ref=e36]: 日前/实时/辅助服务/合约 · 偏差考核
+      - generic [ref=e37]:
+        - heading "💳 结算管理" [level=4] [ref=e38]
+        - paragraph [ref=e39]: DR结算 · 辅助服务结算 · 偏差考核结算
+      - generic [ref=e40]:
+        - heading "🔗 运营总览" [level=4] [ref=e41]
+        - paragraph [ref=e42]: 聚合商管理 · 可调能力评估 · 收益分析
+      - generic [ref=e43]:
+        - heading "🔐 用户管理" [level=4] [ref=e44]
+        - paragraph [ref=e45]: 登录注册 · 角色路由 · 验证码 · 错误锁定
+    - generic [ref=e46]: 技术栈
+    - generic [ref=e47]:
+      - generic [ref=e48]: HTML5
+      - generic [ref=e49]: CSS3 DataV
+      - generic [ref=e50]: ECharts 5.5
+      - generic [ref=e51]: Canvas 粒子
+      - generic [ref=e52]: JavaScript ES6
+      - generic [ref=e53]: 响应式设计
+      - generic [ref=e54]: CDN 部署
+      - generic [ref=e55]: GB/T 40613-2021
+      - generic [ref=e56]: GB/T 44241-2024
+    - generic [ref=e57]: VPP 虚拟电厂平台 · Portfolio · 第 2 页
+  - generic [ref=e58]:
+    - generic [ref=e59]: 📺 调度大屏 Dashboard
+    - generic [ref=e60]:
+      - generic [ref=e61]: 全局态势感知页面。顶部 KPI 行展示实时总出力 / 可调容量 / 今日收益 / 活跃告警；左侧资源地图（ECharts 散点图）标记 5 类资源的地理分布与状态；右侧面板展示实时告警列表、调度执行率、设备健康度、今日收益概览（电力交易/辅助服务/DR 三列）、市场行情快览（日前/实时/辅助服务均价）；底部 VPP 收益构成 4 卡片（占比+金额）。
+      - img "调度大屏 Dashboard" [ref=e62]
+    - generic [ref=e63]:
+      - generic [ref=e64]: 📋 实时调度总览
+      - generic [ref=e65]: 4 类资源（光伏/储能/可控负荷/充电桩）状态卡片 + 实时功率曲线（ECharts 多线图） + 调度效率雷达图 + 执行指令摘要。
+      - img "实时调度总览" [ref=e66]
+    - generic [ref=e67]: VPP 虚拟电厂平台 · Portfolio · 第 3 页
+  - generic [ref=e68]:
+    - generic [ref=e69]: 🎯 实时调度工作站
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - text: 核心交互页面。左侧四资源 Tab 切换：
+        - strong [ref=e72]: 光伏
+        - text: （降额/脱网）·
+        - strong [ref=e73]: 储能
+        - text: （计划充放/紧急功率支撑 +
+        - strong [ref=e74]: 调频模式
+        - text: 一次/二次/爬坡）·
+        - strong [ref=e75]: 可控负荷
+        - text: （柔性档位 +
+        - strong [ref=e76]: 需求响应 DR 模式
+        - text: 邀约/紧急/实时 +
+        - strong [ref=e77]: 削峰填谷
+        - text: 0~50MW 滑块）·
+        - strong [ref=e78]: 充电桩
+        - text: （站点选择/有序充电）。右侧功率曲线 + 历史指令记录 + 系统约束提示。
+      - img "实时调度工作站" [ref=e79]
+    - generic [ref=e80]:
+      - generic [ref=e81]:
+        - heading "🔴 DR 模式" [level=4] [ref=e82]
+        - paragraph [ref=e83]:
+          - text: 邀约 DR（提前4h·≥2h）
+          - text: 紧急 DR（即时·≥15min）
+          - text: 实时 DR（15min·≥30min）
+          - text: 含事件编号 / 补贴单价 / 响应量
+      - generic [ref=e84]:
+        - heading "🔄 调频模式" [level=4] [ref=e85]
+        - paragraph [ref=e86]:
+          - text: 一次调频（≤30s·20MW）
+          - text: 二次调频 AGC（≤3min·30MW）
+          - text: 爬坡支撑（15MW/min·≥10min）
+          - text: Kp 性能指标显示
+    - generic [ref=e87]: VPP 虚拟电厂平台 · Portfolio · 第 4 页
+  - generic [ref=e88]:
+    - generic [ref=e89]: 📋 需求响应事件管理
+    - generic [ref=e90]:
+      - generic [ref=e91]: DR 事件列表（邀约/紧急/实时/削峰/填谷 5 种类型色标）+ 基线算法面板（X of 10 / 前10天选5天 / 窗口调整30min）+ 基线 vs 实际功率曲线（24h，DR 窗口高亮）+ M&V 验证面板（基线功率/实际功率/响应量/响应率/考核结果）+ 补贴计算明细 + DR 月度趋势柱状图 + 响应率分布饼图。
+      - img "需求响应事件管理" [ref=e92]
+    - generic [ref=e93]:
+      - generic [ref=e94]: 📈 电力市场行情
+      - generic [ref=e95]: 四 Tab 切换：日前市场（24h 电价曲线 + 峰平谷标注 + VPP 中标出力）、实时平衡市场（15min 电价 + 偏差考核区间）、辅助服务市场（调频容量/里程/旋转备用/无功调压 4 条价格线）、中长期合约（月度价格 + 电量执行）。VPP 市场收益饼图 + 日度收益趋势堆叠柱状图。
+      - img "电力市场行情" [ref=e96]
+    - generic [ref=e97]: VPP 虚拟电厂平台 · Portfolio · 第 5 页
+  - generic [ref=e98]:
+    - generic [ref=e99]:
+      - generic [ref=e100]: 🔗 VPP 运营总览
+      - generic [ref=e101]: 5 阶段可点击闭环流程图（资源接入→能力评估→市场申报→调度执行→结算归档）。左侧聚合商卡片（6 家）、资源分类饼图（光伏/风电/储能/负荷/充电桩）。右侧可调能力雷达图（4 资源×5 维度）、近7日发电量柱状图、月度收益堆叠柱状图（4 色）、VPP 收益来源饼图。
+      - img "VPP 运营总览" [ref=e102]
+    - generic [ref=e103]:
+      - generic [ref=e104]:
+        - heading "💳 结算管理" [level=4] [ref=e105]
+        - paragraph [ref=e106]: 结算单列表（含结算类型色标：电力交易/辅助服务/DR/容量补偿）· 5 项占比饼图 · 月度收益趋势 · 结算明细 3 Tab（DR 基线vs实际曲线 / 辅助服务 4 类占比 / 偏差考核 7 日趋势图）
+        - img "结算管理" [ref=e107]
+      - generic [ref=e108]:
+        - heading "🚨 告警中心 · 📊 资源监控" [level=4] [ref=e109]
+        - paragraph [ref=e110]:
+          - text: 告警：级别/状态/搜索筛选 · 单条/批量确认 · 7日趋势 · 分类饼图
+          - text: 资源监控：24h/7d/30d 历史曲线 · 双 Y 轴 · 仪表盘 · 状态指示器
+        - generic [ref=e111]:
+          - img "告警中心" [ref=e112]
+          - img "资源监控" [ref=e113]
+    - generic [ref=e114]: VPP 虚拟电厂平台 · Portfolio · 第 6 页
+  - generic [ref=e115]:
+    - generic [ref=e116]:
+      - generic [ref=e117]:
+        - heading "🏠 首页导航" [level=4] [ref=e118]
+        - paragraph [ref=e119]: 9 张导航卡片（原 6 页 + 新增 3 页 DR/市场/运营）。4 个 KPI 统计卡。DataV 深色科技风 + Canvas 粒子动画背景。
+        - img "首页" [ref=e120]
+      - generic [ref=e121]:
+        - heading "🔐 登录页" [level=4] [ref=e122]
+        - paragraph [ref=e123]: 用户名/手机号登录 · 注册表单（含全字段校验） · 验证码刷新 · 5 次错误锁定 30 分钟 · 角色路由跳转
+        - img "登录页" [ref=e124]
+    - generic [ref=e125]: 📚 配套文档
+    - generic [ref=e126]:
+      - generic [ref=e127]:
+        - heading "📄 PRD" [level=4] [ref=e128]
+        - paragraph [ref=e129]:
+          - text: 6 大模块 · 38 个 API · 9 张数据表 · 5 个状态机 · 国标合规矩阵（25 项）
+          - text: PRD-VPP平台-完整版.md / .docx
+      - generic [ref=e130]:
+        - heading "🎨 UI 设计说明" [level=4] [ref=e131]
+        - paragraph [ref=e132]:
+          - text: 11 页布局规范 · 全局视觉规范 · 组件交互规则 · 26 条测试要点
+          - text: UI设计说明-VPP平台-V2.0.0.md
+      - generic [ref=e133]:
+        - heading "📐 设计文档" [level=4] [ref=e134]
+        - paragraph [ref=e135]:
+          - text: 架构图 · 业务闭环 · 导航流 · 5 状态机 · 数据流 · 交互矩阵 · 项目排期（188 人日）
+          - text: VPP-完整设计文档.md
+    - generic [ref=e136]: ✅ 国标合规参考
+    - table [ref=e138]:
+      - rowgroup [ref=e139]:
+        - row "标准 条款 合规状态" [ref=e140]:
+          - columnheader "标准" [ref=e141]
+          - columnheader "条款" [ref=e142]
+          - columnheader "合规状态" [ref=e143]
+        - row "GB/T 40613-2021 四层架构 ✅" [ref=e144]:
+          - cell "GB/T 40613-2021" [ref=e145]
+          - cell "四层架构" [ref=e146]
+          - cell "✅" [ref=e147]
+        - row "GB/T 40613-2021 6.1 指令响应≤10s ✅" [ref=e148]:
+          - cell "GB/T 40613-2021" [ref=e149]
+          - cell "6.1 指令响应≤10s" [ref=e150]
+          - cell "✅" [ref=e151]
+        - row "GB/T 40613-2021 6.2 预测精度≥85%/≥90% ✅" [ref=e152]:
+          - cell "GB/T 40613-2021" [ref=e153]
+          - cell "6.2 预测精度≥85%/≥90%" [ref=e154]
+          - cell "✅" [ref=e155]
+        - row "GB/T 40613-2021 6.3 系统可用率≥99% ✅ 优于国标 99.9%" [ref=e156]:
+          - cell "GB/T 40613-2021" [ref=e157]
+          - cell "6.3 系统可用率≥99%" [ref=e158]
+          - cell "✅ 优于国标 99.9%" [ref=e159]
+        - row "GB/T 44241-2024 全生命周期 8 阶段 ✅" [ref=e160]:
+          - cell "GB/T 44241-2024" [ref=e161]
+          - cell "全生命周期 8 阶段" [ref=e162]
+          - cell "✅" [ref=e163]
+        - row "GB/T 44260-2024 资源配置与评估 ✅" [ref=e164]:
+          - cell "GB/T 44260-2024" [ref=e165]
+          - cell "资源配置与评估" [ref=e166]
+          - cell "✅" [ref=e167]
+    - generic [ref=e168]: VPP 虚拟电厂平台 · Portfolio · 第 7 页

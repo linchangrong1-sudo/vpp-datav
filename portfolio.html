@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VPP 虚拟电厂平台 — 面试作品集</title>
+<style>
+@page {
+  size: A4;
+  margin: 0;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  background: #0a0e27;
+  color: #e0f0ff;
+  width: 210mm;
+}
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 15mm 20mm;
+  page-break-after: always;
+  position: relative;
+  overflow: hidden;
+}
+.page::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, #00d4ff, #00ff88, #ffaa00);
+}
+
+/* 封面 */
+.cover {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  min-height: 297mm;
+  background: linear-gradient(135deg, #0a0e27 0%, #0d1b3e 50%, #0a0e27 100%);
+}
+.cover .badge {
+  display: inline-block;
+  padding: 6px 20px;
+  border: 1px solid #00d4ff;
+  border-radius: 20px;
+  color: #00d4ff;
+  font-size: 12px;
+  margin-bottom: 30px;
+  letter-spacing: 4px;
+}
+.cover h1 {
+  font-size: 42px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  background: linear-gradient(90deg, #00d4ff, #00ff88);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.cover h2 {
+  font-size: 20px;
+  color: #7eb8da;
+  font-weight: 400;
+  margin-bottom: 40px;
+  letter-spacing: 2px;
+}
+.cover .divider {
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, #00d4ff, #00ff88);
+  margin: 0 auto 40px;
+}
+.cover .info {
+  color: #7eb8da;
+  font-size: 14px;
+  line-height: 2;
+}
+.cover .info span {
+  color: #00d4ff;
+}
+.cover .footer-text {
+  position: absolute;
+  bottom: 40px;
+  font-size: 11px;
+  color: rgba(126, 184, 218, 0.5);
+}
+
+/* 项目概览 */
+.section-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  padding-left: 14px;
+  border-left: 4px solid #00d4ff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-title .tag {
+  font-size: 11px;
+  padding: 2px 10px;
+  background: rgba(0, 212, 255, 0.15);
+  border-radius: 10px;
+  color: #00d4ff;
+  font-weight: 400;
+}
+.sub-title {
+  font-size: 15px;
+  color: #00ff88;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.card {
+  background: rgba(6, 30, 60, 0.75);
+  border: 1px solid rgba(0, 200, 255, 0.18);
+  border-radius: 8px;
+  padding: 14px;
+  backdrop-filter: blur(8px);
+}
+.card h4 {
+  font-size: 13px;
+  color: #00d4ff;
+  margin-bottom: 6px;
+}
+.card p, .card li {
+  font-size: 11px;
+  color: #7eb8da;
+  line-height: 1.6;
+}
+.card ul {
+  list-style: none;
+  padding: 0;
+}
+.card li::before {
+  content: '• ';
+  color: #00ff88;
+}
+
+/* 截图区域 */
+.screenshot-section {
+  margin-bottom: 20px;
+}
+.screenshot-section h3 {
+  font-size: 16px;
+  color: #00d4ff;
+  margin-bottom: 6px;
+}
+.screenshot-section .desc {
+  font-size: 11px;
+  color: #7eb8da;
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+.screenshot-section img {
+  width: 100%;
+  border: 1px solid rgba(0, 200, 255, 0.2);
+  border-radius: 6px;
+}
+.tech-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.tech-tag {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  color: #00d4ff;
+}
+.tech-tag.green { border-color: rgba(0, 255, 136, 0.2); color: #00ff88; }
+.tech-tag.orange { border-color: rgba(255, 170, 0, 0.2); color: #ffaa00; }
+
+/* 架构图 */
+.arch-diagram {
+  background: rgba(6, 30, 60, 0.5);
+  border: 1px solid rgba(0, 200, 255, 0.15);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 12px 0;
+  font-family: 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.8;
+  white-space: pre;
+  color: #7eb8da;
+}
+.arch-diagram .hl { color: #00d4ff; }
+.arch-diagram .hl2 { color: #00ff88; }
+.arch-diagram .hl3 { color: #ffaa00; }
+
+/* 页脚 */
+.footer-note {
+  text-align: center;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 200, 255, 0.1);
+  margin-top: 12px;
+  font-size: 10px;
+  color: rgba(126, 184, 218, 0.4);
+}
+</style>
+</head>
+<body>
+
+<!-- ====== 封面 ====== -->
+<div class="page cover">
+  <div class="badge">PORTFOLIO</div>
+  <h1>VPP 虚拟电厂平台</h1>
+  <h2>虚拟电厂运营管理 · 数字大屏 · 全流程闭环</h2>
+  <div class="divider"></div>
+  <div class="info">
+    产品需求文档（PRD）· UI 设计说明<br>
+    DataV 数字大屏 · 6 大业务模块 · 11 个页面<br>
+    技术栈：<span>HTML5 / ECharts 5.5 / CSS3 DataV 风格</span><br>
+    参考标准：<span>GB/T 40613-2021 / GB/T 44241-2024</span>
+  </div>
+  <div class="footer-text">VPP Virtual Power Plant — Operations Management Platform</div>
+</div>
+
+<!-- ====== 第 2 页：项目概览 + 架构 ====== -->
+<div class="page">
+  <div class="section-title">📋 项目概览</div>
+  <div class="grid-2">
+    <div class="card">
+      <h4>🎯 项目定位</h4>
+      <p>面向聚合商、电网调度、交易中心的 VPP 核心运营平台，完整覆盖资源聚合 → 能力评估 → 市场参与 → 调度执行 → 结算归档的全运营闭环。</p>
+    </div>
+    <div class="card">
+      <h4>👥 用户角色</h4>
+      <ul>
+        <li>系统管理员（权限/审计）</li>
+        <li>聚合商运营（资源/运维）</li>
+        <li>电网调度（监控/指令/告警）</li>
+        <li>交易人员（报价/收益）</li>
+        <li>资源业主（数据查看）</li>
+        <li>财务（结算/对账）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:20px;">🏗️ 系统架构</div>
+  <div class="arch-diagram"><span class="hl2">┌─────────────────────────────────────────────────────┐</span>
+<span class="hl2">│  ④ 应用层：电力市场交易 / 电网调度 / 需求响应     │</span>
+<span class="hl2">├─────────────────────────────────────────────────────┤</span>
+<span class="hl">│  ③ 平台层（VPP核心）：资源聚合 / 负荷预测 /       │</span>
+<span class="hl">│     优化调度 / 市场交易 / 安全防护                 │</span>
+<span class="hl">├─────────────────────────────────────────────────────┤</span>
+<span class="hl3">│  ② 通信层：IEC 104 / MQTT / Modbus / DL/T 645     │</span>
+<span class="hl3">│     纵向加密 / 主备冗余 / 断网续传                 │</span>
+<span class="hl3">├─────────────────────────────────────────────────────┤</span>
+│  ① 资源层：光伏 / 风电 / 储能 / 充电桩 / 可控负荷  │
+<span class="hl3">└─────────────────────────────────────────────────────┘</span></div>
+
+  <div class="sub-title" style="margin-top:16px;">11 个页面 · 6 大功能模块</div>
+  <div class="grid-3">
+    <div class="card"><h4>📊 调度与监控</h4><p>调度大屏 · 资源监控 · 实时总览 · 告警中心</p></div>
+    <div class="card"><h4>🎯 控制与执行</h4><p>调度工作站 · DR事件响应 · 调频辅助服务</p></div>
+    <div class="card"><h4>📈 电力市场</h4><p>日前/实时/辅助服务/合约 · 偏差考核</p></div>
+    <div class="card"><h4>💳 结算管理</h4><p>DR结算 · 辅助服务结算 · 偏差考核结算</p></div>
+    <div class="card"><h4>🔗 运营总览</h4><p>聚合商管理 · 可调能力评估 · 收益分析</p></div>
+    <div class="card"><h4>🔐 用户管理</h4><p>登录注册 · 角色路由 · 验证码 · 错误锁定</p></div>
+  </div>
+
+  <div class="sub-title">技术栈</div>
+  <div class="tech-stack">
+    <span class="tech-tag">HTML5</span>
+    <span class="tech-tag">CSS3 DataV</span>
+    <span class="tech-tag green">ECharts 5.5</span>
+    <span class="tech-tag">Canvas 粒子</span>
+    <span class="tech-tag orange">JavaScript ES6</span>
+    <span class="tech-tag green">响应式设计</span>
+    <span class="tech-tag">CDN 部署</span>
+    <span class="tech-tag orange">GB/T 40613-2021</span>
+    <span class="tech-tag">GB/T 44241-2024</span>
+  </div>
+  <div class="footer-note">VPP 虚拟电厂平台 · Portfolio · 第 2 页</div>
+</div>
+
+<!-- ====== 第 3 页：调度大屏 + 实时总览 ====== -->
+<div class="page">
+  <div class="section-title">📺 调度大屏 Dashboard</div>
+  <div class="screenshot-section">
+    <div class="desc">全局态势感知页面。顶部 KPI 行展示实时总出力 / 可调容量 / 今日收益 / 活跃告警；左侧资源地图（ECharts 散点图）标记 5 类资源的地理分布与状态；右侧面板展示实时告警列表、调度执行率、设备健康度、今日收益概览（电力交易/辅助服务/DR 三列）、市场行情快览（日前/实时/辅助服务均价）；底部 VPP 收益构成 4 卡片（占比+金额）。</div>
+    <img src="screenshots/02-dashboard.png" alt="调度大屏 Dashboard">
+  </div>
+  <div class="screenshot-section" style="margin-top:16px;">
+    <div class="section-title" style="font-size:16px;">📋 实时调度总览</div>
+    <div class="desc">4 类资源（光伏/储能/可控负荷/充电桩）状态卡片 + 实时功率曲线（ECharts 多线图） + 调度效率雷达图 + 执行指令摘要。</div>
+    <img src="screenshots/03-dispatch-overview.png" alt="实时调度总览">
+  </div>
+  <div class="footer-note">VPP 虚拟电厂平台 · Portfolio · 第 3 页</div>
+</div>
+
+<!-- ====== 第 4 页：调度工作站 ====== -->
+<div class="page">
+  <div class="section-title">🎯 实时调度工作站</div>
+  <div class="screenshot-section">
+    <div class="desc">核心交互页面。左侧四资源 Tab 切换：<strong>光伏</strong>（降额/脱网）· <strong>储能</strong>（计划充放/紧急功率支撑 + <strong style="color:#00d4ff;">调频模式</strong>一次/二次/爬坡）· <strong>可控负荷</strong>（柔性档位 + <strong style="color:#ff6b6b;">需求响应 DR 模式</strong>邀约/紧急/实时 + <strong style="color:#ffaa00;">削峰填谷</strong>0~50MW 滑块）· <strong>充电桩</strong>（站点选择/有序充电）。右侧功率曲线 + 历史指令记录 + 系统约束提示。</div>
+    <img src="screenshots/04-dispatch-detail.png" alt="实时调度工作站">
+  </div>
+  <div class="grid-2" style="margin-top:12px;">
+    <div class="card">
+      <h4>🔴 DR 模式</h4>
+      <p>邀约 DR（提前4h·≥2h）<br>紧急 DR（即时·≥15min）<br>实时 DR（15min·≥30min）<br>含事件编号 / 补贴单价 / 响应量</p>
+    </div>
+    <div class="card">
+      <h4>🔄 调频模式</h4>
+      <p>一次调频（≤30s·20MW）<br>二次调频 AGC（≤3min·30MW）<br>爬坡支撑（15MW/min·≥10min）<br>Kp 性能指标显示</p>
+    </div>
+  </div>
+  <div class="footer-note">VPP 虚拟电厂平台 · Portfolio · 第 4 页</div>
+</div>
+
+<!-- ====== 第 5 页：DR + 市场 ====== -->
+<div class="page">
+  <div class="section-title">📋 需求响应事件管理</div>
+  <div class="screenshot-section">
+    <div class="desc">DR 事件列表（邀约/紧急/实时/削峰/填谷 5 种类型色标）+ 基线算法面板（X of 10 / 前10天选5天 / 窗口调整30min）+ 基线 vs 实际功率曲线（24h，DR 窗口高亮）+ M&V 验证面板（基线功率/实际功率/响应量/响应率/考核结果）+ 补贴计算明细 + DR 月度趋势柱状图 + 响应率分布饼图。</div>
+    <img src="screenshots/08-dr-events.png" alt="需求响应事件管理">
+  </div>
+  <div class="screenshot-section" style="margin-top:16px;">
+    <div class="section-title" style="font-size:16px;">📈 电力市场行情</div>
+    <div class="desc">四 Tab 切换：日前市场（24h 电价曲线 + 峰平谷标注 + VPP 中标出力）、实时平衡市场（15min 电价 + 偏差考核区间）、辅助服务市场（调频容量/里程/旋转备用/无功调压 4 条价格线）、中长期合约（月度价格 + 电量执行）。VPP 市场收益饼图 + 日度收益趋势堆叠柱状图。</div>
+    <img src="screenshots/09-market-trading.png" alt="电力市场行情">
+  </div>
+  <div class="footer-note">VPP 虚拟电厂平台 · Portfolio · 第 5 页</div>
+</div>
+
+<!-- ====== 第 6 页：VPP运营 + 结算 + 其他 ====== -->
+<div class="page">
+  <div class="screenshot-section">
+    <div class="section-title" style="font-size:16px;">🔗 VPP 运营总览</div>
+    <div class="desc">5 阶段可点击闭环流程图（资源接入→能力评估→市场申报→调度执行→结算归档）。左侧聚合商卡片（6 家）、资源分类饼图（光伏/风电/储能/负荷/充电桩）。右侧可调能力雷达图（4 资源×5 维度）、近7日发电量柱状图、月度收益堆叠柱状图（4 色）、VPP 收益来源饼图。</div>
+    <img src="screenshots/10-vpp-overview.png" alt="VPP 运营总览">
+  </div>
+  <div class="grid-2" style="margin-top:16px;">
+    <div class="card">
+      <h4>💳 结算管理</h4>
+      <p>结算单列表（含结算类型色标：电力交易/辅助服务/DR/容量补偿）· 5 项占比饼图 · 月度收益趋势 · 结算明细 3 Tab（DR 基线vs实际曲线 / 辅助服务 4 类占比 / 偏差考核 7 日趋势图）</p>
+      <img src="screenshots/07-settlement.png" alt="结算管理" style="margin-top:8px;">
+    </div>
+    <div class="card">
+      <h4>🚨 告警中心 · 📊 资源监控</h4>
+      <p>告警：级别/状态/搜索筛选 · 单条/批量确认 · 7日趋势 · 分类饼图<br>资源监控：24h/7d/30d 历史曲线 · 双 Y 轴 · 仪表盘 · 状态指示器</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
+        <img src="screenshots/06-alarm-center.png" alt="告警中心">
+        <img src="screenshots/05-resource-monitor.png" alt="资源监控">
+      </div>
+    </div>
+  </div>
+  <div class="footer-note">VPP 虚拟电厂平台 · Portfolio · 第 6 页</div>
+</div>
+
+<!-- ====== 第 7 页：登录 + 首页 + 规范 ====== -->
+<div class="page">
+  <div class="grid-2">
+    <div class="card">
+      <h4>🏠 首页导航</h4>
+      <p>9 张导航卡片（原 6 页 + 新增 3 页 DR/市场/运营）。4 个 KPI 统计卡。DataV 深色科技风 + Canvas 粒子动画背景。</p>
+      <img src="screenshots/01-index.png" alt="首页" style="margin-top:8px;">
+    </div>
+    <div class="card">
+      <h4>🔐 登录页</h4>
+      <p>用户名/手机号登录 · 注册表单（含全字段校验） · 验证码刷新 · 5 次错误锁定 30 分钟 · 角色路由跳转</p>
+      <img src="screenshots/11-login.png" alt="登录页" style="margin-top:8px;">
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:20px;">📚 配套文档</div>
+  <div class="grid-3">
+    <div class="card">
+      <h4>📄 PRD</h4>
+      <p>6 大模块 · 38 个 API · 9 张数据表 · 5 个状态机 · 国标合规矩阵（25 项）<br><span style="font-size:10px;color:rgba(126,184,218,0.6);">PRD-VPP平台-完整版.md / .docx</span></p>
+    </div>
+    <div class="card">
+      <h4>🎨 UI 设计说明</h4>
+      <p>11 页布局规范 · 全局视觉规范 · 组件交互规则 · 26 条测试要点<br><span style="font-size:10px;color:rgba(126,184,218,0.6);">UI设计说明-VPP平台-V2.0.0.md</span></p>
+    </div>
+    <div class="card">
+      <h4>📐 设计文档</h4>
+      <p>架构图 · 业务闭环 · 导航流 · 5 状态机 · 数据流 · 交互矩阵 · 项目排期（188 人日）<br><span style="font-size:10px;color:rgba(126,184,218,0.6);">VPP-完整设计文档.md</span></p>
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:16px;">✅ 国标合规参考</div>
+  <div class="card">
+    <table style="width:100%;border-collapse:collapse;font-size:11px;">
+      <tr style="border-bottom:1px solid rgba(0,200,255,0.15);">
+        <th style="text-align:left;padding:6px;color:#00d4ff;">标准</th>
+        <th style="text-align:left;padding:6px;color:#00d4ff;">条款</th>
+        <th style="text-align:left;padding:6px;color:#00d4ff;">合规状态</th>
+      </tr>
+      <tr><td style="padding:4px;color:#7eb8da;">GB/T 40613-2021</td><td style="padding:4px;color:#7eb8da;">四层架构</td><td style="padding:4px;color:#00ff88;">✅</td></tr>
+      <tr><td style="padding:4px;color:#7eb8da;">GB/T 40613-2021</td><td style="padding:4px;color:#7eb8da;">6.1 指令响应≤10s</td><td style="padding:4px;color:#00ff88;">✅</td></tr>
+      <tr><td style="padding:4px;color:#7eb8da;">GB/T 40613-2021</td><td style="padding:4px;color:#7eb8da;">6.2 预测精度≥85%/≥90%</td><td style="padding:4px;color:#00ff88;">✅</td></tr>
+      <tr><td style="padding:4px;color:#7eb8da;">GB/T 40613-2021</td><td style="padding:4px;color:#7eb8da;">6.3 系统可用率≥99%</td><td style="padding:4px;color:#00ff88;">✅ 优于国标 99.9%</td></tr>
+      <tr><td style="padding:4px;color:#7eb8da;">GB/T 44241-2024</td><td style="padding:4px;color:#7eb8da;">全生命周期 8 阶段</td><td style="padding:4px;color:#00ff88;">✅</td></tr>
+      <tr><td style="padding:4px;color:#7eb8da;">GB/T 44260-2024</td><td style="padding:4px;color:#7eb8da;">资源配置与评估</td><td style="padding:4px;color:#00ff88;">✅</td></tr>
+    </table>
+  </div>
+
+  <div class="footer-note" style="margin-top:20px;">VPP 虚拟电厂平台 · Portfolio · 第 7 页</div>
+</div>
+
+</body>
+</html>

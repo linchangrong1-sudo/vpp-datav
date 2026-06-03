@@ -1,0 +1,130 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: V
+      - generic [ref=e7]: 虚拟电厂数字平台
+    - generic [ref=e8]:
+      - generic [ref=e9]: 2026年6月3日星期三
+      - generic [ref=e10]: 17:34:51
+      - generic [ref=e11]: "|"
+      - generic [ref=e12]: 🌤 晴 23°C
+    - generic [ref=e13]:
+      - link "🎛️ 实时调度" [ref=e14] [cursor=pointer]:
+        - /url: dispatch-detail.html
+      - generic [ref=e15]: "|"
+      - generic [ref=e17]: 系统运行中
+      - generic [ref=e18]: "|"
+      - generic [ref=e19]: 👤 系统管理员
+  - generic [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: 📊
+          - text: 核心指标
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - generic [ref=e27]: 2,850
+            - generic [ref=e28]: 总装机容量 (MW)
+          - generic [ref=e29]:
+            - generic [ref=e30]: "142"
+            - generic [ref=e31]: 在线资源 (个)
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - generic [ref=e34]: 18,562
+            - generic [ref=e35]: 今日发电 (MWh)
+          - generic [ref=e36]:
+            - generic [ref=e37]: "96.8"
+            - generic [ref=e38]: 计划完成率 (%)
+      - generic [ref=e40]:
+        - generic [ref=e41]: ⚡
+        - text: 功率实时监测
+      - generic [ref=e46]:
+        - generic [ref=e47]: 🔋
+        - text: 储能充放电状态
+    - generic [ref=e53]:
+      - generic [ref=e54] [cursor=pointer]: 📡 资源分布
+      - generic [ref=e55] [cursor=pointer]: 🔗 能量流向
+      - generic [ref=e56] [cursor=pointer]: 📈 负荷趋势
+    - generic [ref=e60]:
+      - generic [ref=e62]:
+        - generic [ref=e63]: 🚨
+        - text: 实时告警
+        - generic [ref=e64]: (24h)
+      - generic [ref=e66]:
+        - generic [ref=e67]: 📋
+        - text: 调度指令执行率
+        - link "进入调度 →" [ref=e68] [cursor=pointer]:
+          - /url: dispatch-detail.html
+      - generic [ref=e70]:
+        - generic [ref=e71]:
+          - generic [ref=e72]: 🏗️
+          - text: 设备资产健康度
+        - generic [ref=e73]:
+          - generic [ref=e74]:
+            - generic [ref=e75]: "196"
+            - generic [ref=e76]: 在线运行
+          - generic [ref=e77]:
+            - generic [ref=e78]: "38"
+            - generic [ref=e79]: 离线待机
+          - generic [ref=e80]:
+            - generic [ref=e81]: "12"
+            - generic [ref=e82]: 故障告警
+          - generic [ref=e83]:
+            - generic [ref=e84]: 健康度
+            - generic [ref=e85]: 91.2%
+      - generic [ref=e86]:
+        - generic [ref=e87]:
+          - generic [ref=e88]: 💰
+          - text: 今日收益概览
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - generic [ref=e91]: ¥126.8
+            - generic [ref=e92]: 电力交易 (万元)
+          - generic [ref=e93]:
+            - generic [ref=e94]: ¥34.2
+            - generic [ref=e95]: 辅助服务 (万元)
+          - generic [ref=e96]:
+            - generic [ref=e97]: ¥18.6
+            - generic [ref=e98]: 需求响应 (万元)
+      - generic [ref=e99]:
+        - generic [ref=e100]:
+          - generic [ref=e101]: 📈
+          - text: 市场行情快览
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - generic [ref=e104]: 日前均价
+            - generic [ref=e105]: "385.6"
+            - generic [ref=e106]: 元/MWh
+          - generic [ref=e107]:
+            - generic [ref=e108]: 实时均价
+            - generic [ref=e109]: "412.3"
+            - generic [ref=e110]: 元/MWh ↑6.9%
+          - generic [ref=e111]:
+            - generic [ref=e112]: 辅助服务
+            - generic [ref=e113]: "28.5"
+            - generic [ref=e114]: 元/MWh
+  - generic [ref=e115]:
+    - generic [ref=e116]:
+      - generic [ref=e117]: 💹
+      - text: VPP 收益构成
+      - generic [ref=e118]: 6月累计
+    - generic [ref=e119]:
+      - generic [ref=e120]:
+        - generic [ref=e121]: 电力交易
+        - generic [ref=e122]: 45%
+        - generic [ref=e123]: ¥578.9万
+      - generic [ref=e124]:
+        - generic [ref=e125]: 辅助服务
+        - generic [ref=e126]: 28%
+        - generic [ref=e127]: ¥360.4万
+      - generic [ref=e128]:
+        - generic [ref=e129]: 需求响应
+        - generic [ref=e130]: 18%
+        - generic [ref=e131]: ¥231.6万
+      - generic [ref=e132]:
+        - generic [ref=e133]: 容量补偿
+        - generic [ref=e134]: 9%
+        - generic [ref=e135]: ¥115.8万
+  - generic [ref=e136]:
+    - generic [ref=e137]: 实时消息
+    - generic [ref=e139]: "[2026-06-02 14:32:10] 光伏电站 #PS-028 发电功率超计划105%，自动上调调度目标至 48.5MW | [14:30:05] 储能站 #ES-012 充放电切换完成，当前SOC 78% | [14:28:33] 系统检测到风电场 #WF-003 出力波动±8%，已触发±10%联动预判 | [14:25:00] 今日累计交易电量 18,562 MWh，完成计划 96.8%"

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>告警中心 - VPP 虚拟电厂</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg-deep:#0a0e27;--bg-panel:rgba(6,30,60,0.75);
+  --border-glow:rgba(0,200,255,0.35);--accent:#00d4ff;
+  --accent2:#00ff88;--accent3:#ff6b6b;--accent4:#ffaa00;
+  --text-primary:#e0f0ff;--text-secondary:#7eb8da;
+  --glow-soft:0 0 20px rgba(0,180,255,0.15);
+  --glow-strong:0 0 30px rgba(0,200,255,0.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg-deep);color:var(--text-primary);
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+  height:100vh;overflow:hidden;
+}
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+
+.container{
+  position:relative;z-index:1;height:100vh;
+  display:flex;flex-direction:column;padding:12px 16px;
+}
+
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:10px;border-bottom:1px solid rgba(0,200,255,0.2);
+  flex-shrink:0;margin-bottom:10px;
+}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-logo{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),#0066ff);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:#fff;box-shadow:var(--glow-strong);}
+.header-title{font-size:18px;font-weight:700;letter-spacing:2px;}
+.header-breadcrumb{font-size:12px;color:var(--text-secondary);}
+.header-breadcrumb span{color:var(--accent);}
+.header-right{display:flex;align-items:center;gap:12px;}
+.header-right .time{font-size:22px;font-weight:700;font-family:'Consolas',monospace;color:#e0f0ff;}
+
+.body{
+  flex:1;display:flex;gap:12px;min-height:0;
+}
+
+/* Left Stats */
+.left-stats{
+  width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;
+}
+.stat-panel{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:14px 16px;position:relative;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);text-align:center;
+}
+.stat-panel::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.stat-panel .big-num{
+  font-size:42px;font-weight:700;font-family:'Consolas',monospace;
+  line-height:1.2;
+}
+.stat-panel .big-num.red{color:var(--accent3);text-shadow:0 0 25px rgba(255,107,107,0.5);}
+.stat-panel .big-num.orange{color:var(--accent4);text-shadow:0 0 25px rgba(255,170,0,0.5);}
+.stat-panel .big-num.green{color:var(--accent2);text-shadow:0 0 25px rgba(0,255,136,0.5);}
+.stat-panel .stat-label{font-size:11px;color:var(--text-secondary);margin-top:4px;}
+.stat-panel .stat-sub{font-size:10px;color:var(--text-secondary);margin-top:2px;}
+
+.mini-chart{width:100%;height:100px;}
+
+/* Main Content */
+.main-content{
+  flex:1;display:flex;flex-direction:column;gap:12px;min-width:0;
+}
+
+/* Filter Bar */
+.filter-bar{
+  background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:12px;
+  flex-shrink:0;backdrop-filter:blur(8px);box-shadow:var(--glow-soft);
+  position:relative;
+}
+.filter-bar::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.filter-group{display:flex;align-items:center;gap:6px;}
+.filter-label{font-size:11px;color:var(--text-secondary);}
+.filter-chip{
+  padding:4px 14px;border:1px solid rgba(0,200,255,0.3);border-radius:14px;
+  font-size:11px;color:var(--text-secondary);cursor:pointer;transition:all .3s;
+  background:rgba(0,20,50,0.4);
+}
+.filter-chip:hover{border-color:var(--accent);color:var(--text-primary);}
+.filter-chip.active{border-color:var(--accent);color:var(--accent);background:rgba(0,200,255,0.12);box-shadow:0 0 10px rgba(0,200,255,0.2);}
+.filter-chip.active.danger{border-color:var(--accent3);color:var(--accent3);background:rgba(255,107,107,0.12);box-shadow:0 0 10px rgba(255,107,107,0.2);}
+
+.filter-search{
+  margin-left:auto;position:relative;
+}
+.filter-search input{
+  background:rgba(0,20,50,0.6);border:1px solid rgba(0,200,255,0.2);
+  border-radius:4px;padding:5px 10px;color:var(--text-primary);
+  font-size:11px;outline:none;width:180px;
+}
+.filter-search input:focus{border-color:var(--accent);}
+
+.btn{
+  padding:6px 16px;border:1px solid var(--accent);border-radius:4px;
+  background:rgba(0,200,255,0.1);color:var(--accent);
+  font-size:11px;cursor:pointer;transition:all .3s;font-family:inherit;white-space:nowrap;
+}
+.btn:hover{background:rgba(0,200,255,0.2);box-shadow:var(--glow-strong);}
+.btn.primary{background:linear-gradient(135deg,var(--accent),#0066ff);color:#fff;border:none;font-weight:600;}
+.btn.danger{border-color:var(--accent3);color:var(--accent3);}
+
+/* Alert List */
+.alert-panel{
+  flex:1;background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;padding:14px 16px;position:relative;overflow:hidden;
+  backdrop-filter:blur(8px);box-shadow:var(--glow-soft);display:flex;flex-direction:column;
+}
+.alert-panel::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.panel-title{
+  font-size:13px;font-weight:700;margin-bottom:10px;
+  padding-left:10px;border-left:3px solid var(--accent);
+  display:flex;align-items:center;gap:6px;flex-shrink:0;
+}
+
+.alert-scroll{
+  flex:1;overflow-y:auto;padding-right:4px;
+}
+.alert-scroll::-webkit-scrollbar{width:4px;}
+.alert-scroll::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+
+.alert-card{
+  background:rgba(0,20,50,0.4);border:1px solid rgba(0,180,255,0.1);
+  border-radius:6px;padding:12px 14px;margin-bottom:8px;
+  display:flex;gap:12px;transition:all .4s;position:relative;overflow:hidden;
+  cursor:pointer;
+}
+.alert-card:hover{background:rgba(0,200,255,0.06);border-color:var(--border-glow);}
+.alert-card.critical{border-left:3px solid var(--accent3);}
+.alert-card.warning{border-left:3px solid var(--accent4);}
+.alert-card.info{border-left:3px solid var(--accent);}
+.alert-card.critical::after{
+  content:'';position:absolute;top:0;right:0;width:60px;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,107,107,0.06));
+  pointer-events:none;
+}
+.alert-card.confirmed{opacity:0.65;border-left-color:var(--text-secondary);}
+.alert-card.confirmed .confirm-badge{display:inline-flex;}
+.alert-card.pulse{animation:flashBorder 2s infinite;}
+@keyframes flashBorder{
+  0%,100%{border-color:rgba(0,180,255,0.1);}
+  50%{border-color:var(--accent3);box-shadow:0 0 15px rgba(255,107,107,0.3);}
+}
+.alert-severity{
+  width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:20px;flex-shrink:0;
+}
+.alert-severity.crit{background:rgba(255,107,107,0.15);border:2px solid var(--accent3);box-shadow:0 0 12px rgba(255,107,107,0.2);}
+.alert-severity.warn{background:rgba(255,170,0,0.15);border:2px solid var(--accent4);box-shadow:0 0 12px rgba(255,170,0,0.2);}
+.alert-severity.info{background:rgba(0,212,255,0.15);border:2px solid var(--accent);box-shadow:0 0 12px rgba(0,212,255,0.2);}
+
+.alert-body{flex:1;min-width:0;}
+.alert-body .alert-title{font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;}
+.alert-body .alert-desc{font-size:11px;color:var(--text-secondary);line-height:1.5;}
+.alert-body .alert-meta{display:flex;gap:16px;margin-top:6px;font-size:10px;color:var(--text-secondary);}
+.alert-body .alert-meta span{display:flex;align-items:center;gap:3px;}
+
+.confirm-badge{
+  display:none;padding:2px 8px;border-radius:3px;font-size:9px;
+  background:rgba(126,184,218,0.15);color:var(--text-secondary);
+  border:1px solid rgba(126,184,218,0.3);margin-left:8px;
+}
+
+.alert-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0;justify-content:center;}
+
+/* Toast */
+.toast{
+  position:fixed;top:20px;right:20px;z-index:100;
+  padding:12px 20px;border-radius:6px;font-size:13px;
+  transition:all .4s;opacity:0;transform:translateY(-20px);pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.success{background:rgba(0,255,136,0.15);border:1px solid var(--accent2);color:var(--accent2);}
+.toast.error{background:rgba(255,107,107,0.15);border:1px solid var(--accent3);color:var(--accent3);}
+
+/* Bottom Chart */
+.chart-row{height:150px;flex-shrink:0;display:flex;gap:12px;margin-top:12px;}
+.chart-mini{
+  flex:1;background:var(--bg-panel);border:1px solid var(--border-glow);
+  border-radius:8px;position:relative;backdrop-filter:blur(8px);
+  box-shadow:var(--glow-soft);padding:8px;
+}
+.chart-mini::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">V</div>
+      <div>
+        <div class="header-title">告警中心</div>
+        <div class="header-breadcrumb">VPP数字平台 / <span>告警中心</span></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <a href="dispatch-detail.html" style="padding:4px 12px;background:linear-gradient(135deg,var(--accent4),var(--accent3));color:#fff;border-radius:4px;text-decoration:none;font-size:11px;font-weight:600;margin-right:8px;">🎛️ 实时调度</a>
+      <span class="time" id="liveTime">--:--:--</span>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <!-- Left Stats -->
+    <div class="left-stats">
+      <div class="stat-panel">
+        <div class="big-num red" id="criticalCount">3</div>
+        <div class="stat-label">🔴 严重告警</div>
+        <div class="stat-sub">待确认 · 需立即处理</div>
+      </div>
+      <div class="stat-panel">
+        <div class="big-num orange" id="warningCount">5</div>
+        <div class="stat-label">🟡 警告告警</div>
+        <div class="stat-sub">待确认</div>
+      </div>
+      <div class="stat-panel">
+        <div class="big-num green" id="confirmedCount">12</div>
+        <div class="stat-label">✅ 已确认</div>
+        <div class="stat-sub">今日累计</div>
+      </div>
+      <div class="stat-panel" style="padding:10px;">
+        <div id="chartPie" class="mini-chart"></div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Filter -->
+      <div class="filter-bar">
+        <div class="filter-group">
+          <span class="filter-label">级别:</span>
+          <div class="filter-chip active" data-filter="all">全部</div>
+          <div class="filter-chip danger" data-filter="critical">🔴 严重</div>
+          <div class="filter-chip" data-filter="warning">🟡 警告</div>
+          <div class="filter-chip" data-filter="info">🔵 信息</div>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">状态:</span>
+          <div class="filter-chip active" data-status="all">全部</div>
+          <div class="filter-chip" data-status="unacked">待确认</div>
+          <div class="filter-chip" data-status="confirmed">已确认</div>
+        </div>
+        <div class="filter-search">
+          <input type="text" id="searchInput" placeholder="🔍 搜索告警...">
+        </div>
+        <button class="btn primary" onclick="batchConfirm()">✅ 批量确认</button>
+        <button class="btn danger" onclick="acknowledgeAll()">📋 全部确认</button>
+      </div>
+
+      <!-- Alert List -->
+      <div class="alert-panel">
+        <div class="panel-title">🚨 告警列表 <span style="font-size:10px;color:var(--text-secondary);">共 <span id="alertTotal">20</span> 条</span></div>
+        <div class="alert-scroll" id="alertList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Charts -->
+  <div class="chart-row">
+    <div class="chart-mini" id="chartTimeline"></div>
+    <div class="chart-mini" id="chartCategory"></div>
+  </div>
+</div>
+
+<script>
+// ========== Background ==========
+const canvas=document.getElementById('bgCanvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+const particles=[];
+class P{constructor(){this.reset();}reset(){this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.r=Math.random()*1.5+0.5;this.vx=(Math.random()-0.5)*0.3;this.vy=(Math.random()-0.5)*0.3;this.a=Math.random()*0.4+0.15;}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height)this.reset();}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,200,255,${this.a})`;ctx.fill();}}
+for(let i=0;i<60;i++)particles.push(new P());
+function animateBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='rgba(0,180,255,0.03)';ctx.lineWidth=0.5;
+  for(let x=60;x<canvas.width;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=60;y<canvas.height;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// Clock
+function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});}
+updateTime();setInterval(updateTime,1000);
+
+// ========== Alert Data ==========
+const alertData=[
+  {id:'ALT-001',severity:'critical',title:'光伏电站功率异常下降',desc:'#PS-028 输出功率从 185MW 骤降至 28MW，降幅达 84.9%，疑似逆变器故障，需立即排查。',source:'PS-028',time:'14:32:10',status:'unacked',category:'光伏'},
+  {id:'ALT-002',severity:'critical',title:'储能站 SOC 过低告警',desc:'#ES-012 荷电状态降至 28%，低于30%安全阈值，需立即调整充放电策略，避免深度放电损坏电池组。',source:'ES-012',time:'14:15:33',status:'unacked',category:'储能'},
+  {id:'ALT-003',severity:'critical',title:'调度指令超时未确认',desc:'调度指令 #D20260602-0035（目标 35MW）已超时 15 分钟仍未确认，可能影响电网调度计划执行。',source:'WF-003',time:'13:45:50',status:'unacked',category:'调度'},
+  {id:'ALT-004',severity:'warning',title:'风电场出力波动接近阈值',desc:'#WF-003 近5分钟出力波动±8%，接近±10%联动触发阈值，系统已启动预判机制。',source:'WF-003',time:'14:28:05',status:'unacked',category:'风电'},
+  {id:'ALT-005',severity:'warning',title:'逆变器效率下降',desc:'#INV-047 当前效率 91%，低于95%告警线，建议安排巡检维护。',source:'PS-028',time:'14:02:18',status:'confirmed',category:'光伏'},
+  {id:'ALT-006',severity:'warning',title:'通信延迟异常',desc:'风电场 #WF-011 通信延迟 850ms，超过500ms正常阈值，可能影响实时调度响应。',source:'WF-011',time:'13:30:22',status:'unacked',category:'通信'},
+  {id:'ALT-007',severity:'warning',title:'并网点电压越限',desc:'PCC节点 #PCC-08 电压 238kV，超出 220±5% 范围，需调节无功补偿。',source:'PCC-08',time:'12:55:10',status:'confirmed',category:'电网'},
+  {id:'ALT-008',severity:'warning',title:'储能充放电切换频繁',desc:'#ES-018 近1小时充放电切换达8次，超过正常频率（≤4次/h），检查调度策略。',source:'ES-018',time:'12:20:45',status:'unacked',category:'储能'},
+  {id:'ALT-009',severity:'info',title:'光伏预测偏差提醒',desc:'#PS-031 今日实际出力 vs 预测偏差 12.5%，超短期预测模型建议重新校准。',source:'PS-031',time:'11:45:30',status:'confirmed',category:'光伏'},
+  {id:'ALT-010',severity:'info',title:'系统自动调节记录',desc:'系统自动完成±10%联动调节：储能 #ES-015 从 40MW → 52MW，补偿风电下降。',source:'ES-015',time:'11:20:15',status:'confirmed',category:'系统'},
+  {id:'ALT-011',severity:'info',title:'设备固件升级提醒',desc:'逆变器 #INV-052 固件版本 v2.3.1 存在已知漏洞，建议升级至 v2.4.0。',source:'INV-052',time:'10:55:00',status:'confirmed',category:'设备'},
+  {id:'ALT-012',severity:'info',title:'气象预警联动',desc:'国家气象台发布大风蓝色预警，预计未来6小时风机出力将提升15%-20%。',source:'WF-ALL',time:'10:30:00',status:'confirmed',category:'气象'},
+];
+
+let currentFilter='all';
+let currentStatus='all';
+
+// ========== Render List ==========
+function renderAlerts(){
+  const container=document.getElementById('alertList');
+  const searchTerm=document.getElementById('searchInput').value.toLowerCase();
+
+  const filtered=alertData.filter(a=>{
+    if(currentFilter!=='all'&&a.severity!==currentFilter)return false;
+    if(currentStatus!=='all'&&a.status!==currentStatus)return false;
+    if(searchTerm&&!a.title.toLowerCase().includes(searchTerm)&&!a.desc.toLowerCase().includes(searchTerm)&&!a.source.toLowerCase().includes(searchTerm))return false;
+    return true;
+  });
+
+  document.getElementById('alertTotal').textContent=filtered.length;
+
+  container.innerHTML=filtered.map(a=>{
+    const sevIcon=a.severity==='critical'?'⚠️':a.severity==='warning'?'⚡':'ℹ️';
+    const sevClass=a.severity==='critical'?'crit':a.severity==='warning'?'warn':'info';
+    const confirmedClass=a.status==='confirmed'?'confirmed':'';
+    const pulseClass=a.severity==='critical'&&a.status==='unacked'?'pulse':'';
+    return `
+    <div class="alert-card ${a.severity} ${confirmedClass} ${pulseClass}" data-id="${a.id}">
+      <div class="alert-severity ${sevClass}">${sevIcon}</div>
+      <div class="alert-body">
+        <div class="alert-title">
+          ${a.title}
+          ${a.status==='confirmed'?'<span class="confirm-badge">✓ 已确认</span>':''}
+        </div>
+        <div class="alert-desc">${a.desc}</div>
+        <div class="alert-meta">
+          <span>📌 ${a.source}</span>
+          <span>🕐 ${a.time}</span>
+          <span>🏷️ ${a.category}</span>
+        </div>
+      </div>
+      <div class="alert-actions">
+        ${a.status==='unacked'?`<button class="btn primary" onclick="event.stopPropagation();confirmAlert('${a.id}')">确认</button>`:''}
+        <button class="btn" onclick="event.stopPropagation();viewDetail('${a.id}')">详情</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Attach click handlers for selection
+  container.querySelectorAll('.alert-card').forEach(card=>{
+    card.addEventListener('click',function(){this.classList.toggle('selected');});
+  });
+
+  // Update stats - crit/warn count based on filter, confirmed always from full data
+  const critCount=filtered.filter(a=>a.severity==='critical'&&a.status==='unacked').length;
+  const warnCount=filtered.filter(a=>a.severity==='warning'&&a.status==='unacked').length;
+  const confCount=alertData.filter(a=>a.status==='confirmed').length;
+  document.getElementById('criticalCount').textContent=critCount;
+  document.getElementById('warningCount').textContent=warnCount;
+  document.getElementById('confirmedCount').textContent=confCount;
+}
+
+// ========== Confirm ==========
+function confirmAlert(id){
+  const alert=alertData.find(a=>a.id===id);
+  if(!alert)return;
+  alert.status='confirmed';
+  showToast('success',`告警 ${id} 已确认`);
+  renderAlerts();
+}
+
+function batchConfirm(){
+  const selected=document.querySelectorAll('.alert-card.selected');
+  if(selected.length===0){showToast('error','请点击选中要确认的告警卡片');return;}
+  selected.forEach(card=>{
+    const id=card.dataset.id;
+    const alert=alertData.find(a=>a.id===id);
+    if(alert)alert.status='confirmed';
+  });
+  showToast('success',`已批量确认 ${selected.length} 条告警`);
+  renderAlerts();
+}
+
+function acknowledgeAll(){
+  const unacked=alertData.filter(a=>a.status==='unacked');
+  if(unacked.length===0){showToast('error','没有待确认的告警');return;}
+  unacked.forEach(a=>a.status='confirmed');
+  showToast('success',`已全部确认 ${unacked.length} 条告警`);
+  renderAlerts();
+}
+
+function viewDetail(id){
+  const alert=alertData.find(a=>a.id===id);
+  if(!alert)return;
+  showToast('success',`查看详情: ${alert.title}\n来源: ${alert.source} | 时间: ${alert.time}`);
+}
+
+function showToast(type,msg){
+  const toast=document.getElementById('toast');
+  toast.className=`toast ${type} show`;
+  toast.textContent=msg;
+  setTimeout(()=>toast.classList.remove('show'),2500);
+}
+
+// ========== Filters ==========
+document.querySelectorAll('.filter-chip[data-filter]').forEach(chip=>{
+  chip.addEventListener('click',function(){
+    document.querySelectorAll('.filter-chip[data-filter]').forEach(c=>c.classList.remove('active'));
+    this.classList.add('active');
+    currentFilter=this.dataset.filter;
+    renderAlerts();
+  });
+});
+document.querySelectorAll('.filter-chip[data-status]').forEach(chip=>{
+  chip.addEventListener('click',function(){
+    document.querySelectorAll('.filter-chip[data-status]').forEach(c=>c.classList.remove('active'));
+    this.classList.add('active');
+    currentStatus=this.dataset.status;
+    renderAlerts();
+  });
+});
+document.getElementById('searchInput').addEventListener('input',renderAlerts);
+
+// ========== Bottom Charts ==========
+const chartTimeline=echarts.init(document.getElementById('chartTimeline'));
+chartTimeline.setOption({
+  title:{text:'近7日告警趋势',textStyle:{color:'#e0f0ff',fontSize:12},left:'center',top:4},
+  tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:8}},
+  grid:{left:45,right:15,top:32,bottom:26},
+  xAxis:{type:'category',data:['05/27','05/28','05/29','05/30','05/31','06/01','06/02'],axisLabel:{color:'#7eb8da',fontSize:8},boundaryGap:false},
+  yAxis:{type:'value',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+  series:[
+    {name:'严重',type:'line',smooth:true,data:[2,1,3,2,1,2,3],lineStyle:{color:'#ff6b6b',width:2},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(255,107,107,0.25)'},{offset:1,color:'rgba(255,107,107,0.02)'}]}},symbol:'circle',symbolSize:6,itemStyle:{color:'#ff6b6b'}},
+    {name:'警告',type:'line',smooth:true,data:[4,3,5,6,4,5,5],lineStyle:{color:'#ffaa00',width:2},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(255,170,0,0.2)'},{offset:1,color:'rgba(255,170,0,0.02)'}]}},symbol:'circle',symbolSize:6,itemStyle:{color:'#ffaa00'}},
+    {name:'信息',type:'line',smooth:true,data:[3,2,4,3,5,4,4],lineStyle:{color:'#00d4ff',width:2},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,212,255,0.2)'},{offset:1,color:'rgba(0,212,255,0.02)'}]}},symbol:'circle',symbolSize:6,itemStyle:{color:'#00d4ff'}},
+  ],
+});
+
+const chartCategory=echarts.init(document.getElementById('chartCategory'));
+const categoryData=[
+  {value:5,name:'光伏',color:'#ffaa00'},
+  {value:3,name:'风电',color:'#00d4ff'},
+  {value:3,name:'储能',color:'#00ff88'},
+  {value:2,name:'调度',color:'#ff6b6b'},
+  {value:2,name:'通信',color:'#7eb8da'},
+  {value:2,name:'系统',color:'#34d399'},
+  {value:1,name:'电网',color:'#e0f0ff'},
+  {value:1,name:'气象',color:'#a78bfa'},
+  {value:1,name:'设备',color:'#fbbf24'},
+].sort((a,b)=>b.value-a.value);
+chartCategory.setOption({
+  title:{text:'告警分类分布',textStyle:{color:'#e0f0ff',fontSize:12},left:'center',top:4},
+  tooltip:{trigger:'axis',axisPointer:{type:'shadow'},backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+  grid:{left:50,right:30,top:32,bottom:8},
+  xAxis:{type:'value',splitLine:{lineStyle:{color:'rgba(0,180,255,0.06)'}},axisLabel:{color:'#7eb8da',fontSize:8}},
+  yAxis:{type:'category',data:categoryData.map(d=>d.name),inverse:true,axisLabel:{color:'#7eb8da',fontSize:9},axisLine:{lineStyle:{color:'rgba(0,180,255,0.2)'}}},
+  series:[{
+    type:'bar',data:categoryData.map(d=>({value:d.value,itemStyle:{color:d.color,borderRadius:[0,3,3,0]}})),
+    barWidth:12,label:{show:true,position:'right',color:'#7eb8da',fontSize:9}
+  }]
+});
+
+// Pie chart
+const chartPie=echarts.init(document.getElementById('chartPie'));
+chartPie.setOption({
+  tooltip:{trigger:'item'},
+  series:[{
+    type:'pie',radius:['50%','75%'],center:['50%','50%'],
+    data:[
+      {value:8,name:'待确认',itemStyle:{color:'#ff6b6b'}},
+      {value:12,name:'已确认',itemStyle:{color:'#00ff88'}},
+    ],
+    label:{show:false},
+    emphasis:{label:{show:true,color:'#e0f0ff',fontSize:11}}
+  }]
+});
+
+// Init
+renderAlerts();
+window.addEventListener('resize',()=>{chartTimeline.resize();chartCategory.resize();chartPie.resize();});
+</script>
+</body>
+</html>

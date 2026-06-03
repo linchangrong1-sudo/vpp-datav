@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VPP 虚拟电厂数字平台</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root {
+  --bg-deep: #0a0e27;
+  --bg-panel: rgba(6, 30, 60, 0.75);
+  --border-glow: rgba(0, 200, 255, 0.35);
+  --accent: #00d4ff;
+  --accent2: #00ff88;
+  --accent3: #ff6b6b;
+  --accent4: #ffaa00;
+  --text-primary: #e0f0ff;
+  --text-secondary: #7eb8da;
+  --glow-soft: 0 0 20px rgba(0, 180, 255, 0.15);
+  --glow-strong: 0 0 30px rgba(0, 200, 255, 0.4);
+  --panel-radius: 8px;
+  --header-h: 64px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Microsoft YaHei','PingFang SC',sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  user-select: none;
+}
+
+/* ===== Canvas Background ===== */
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;}
+
+/* ===== Main Container ===== */
+#app{
+  position:relative;z-index:1;
+  width:100%;height:100vh;
+  display:flex;flex-direction:column;
+  padding: 0 16px 12px;
+}
+
+/* ===== Header ===== */
+.header{
+  height: var(--header-h);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+  position:relative;
+}
+.header::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.header-left{display:flex;align-items:center;gap:14px;}
+.header-logo{
+  width:36px;height:36px;
+  background:linear-gradient(135deg,var(--accent),#0066ff);
+  border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:bold;color:#fff;
+  box-shadow: var(--glow-strong);
+}
+.header-title{font-size:22px;font-weight:700;letter-spacing:3px;background:linear-gradient(180deg,#e0f0ff,#7eb8da);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.header-center{display:flex;align-items:center;gap:24px;font-size:13px;color:var(--text-secondary);}
+.header-center .time{font-size:28px;font-weight:700;color:#e0f0ff;letter-spacing:2px;font-family:'Consolas','Monaco',monospace;}
+.header-center .date{font-size:13px;}
+.header-right{display:flex;align-items:center;gap:16px;font-size:13px;color:var(--text-secondary);}
+.header-right .dot{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* ===== Body Layout ===== */
+.body{
+  flex:1;display:flex;gap:12px;
+  padding-top:8px;min-height:0;
+}
+
+/* ===== Column ===== */
+.col-left,.col-right{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;}
+.col-center{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
+
+/* ===== Panel ===== */
+.panel{
+  background:var(--bg-panel);
+  border:1px solid var(--border-glow);
+  border-radius:var(--panel-radius);
+  padding:12px 14px;
+  position:relative;
+  backdrop-filter:blur(8px);
+  box-shadow:var(--glow-soft);
+  transition:box-shadow .4s;
+}
+.panel:hover{box-shadow:var(--glow-strong);}
+.panel::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.panel-title{
+  font-size:14px;font-weight:700;color:var(--text-primary);
+  margin-bottom:8px;padding-left:10px;
+  border-left:3px solid var(--accent);
+  display:flex;align-items:center;gap:6px;
+}
+.panel-title .icon{font-size:14px;}
+
+/* ===== Stat Card ===== */
+.stat-row{display:flex;flex-wrap:wrap;gap:8px;}
+.stat-card{
+  flex:1;min-width:110px;
+  background:rgba(0,180,255,0.06);
+  border:1px solid rgba(0,180,255,0.15);
+  border-radius:6px;padding:10px 12px;
+  text-align:center;position:relative;overflow:hidden;
+  transition:all .3s;
+}
+.stat-card:hover{background:rgba(0,180,255,0.12);border-color:var(--border-glow);transform:translateY(-2px);}
+.stat-card .val{
+  font-size:24px;font-weight:700;font-family:'Consolas','Monaco',monospace;
+  background:linear-gradient(180deg,#e0f0ff,#7eb8da);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.stat-card .val.green{background:linear-gradient(180deg,#00ff88,#00cc66);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.stat-card .val.orange{background:linear-gradient(180deg,#ffaa00,#ff8800);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.stat-card .val.red{background:linear-gradient(180deg,#ff6b6b,#ff4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.stat-card .label{font-size:11px;color:var(--text-secondary);margin-top:2px;}
+
+/* ===== Center Tabs ===== */
+.center-tabs{
+  display:flex;gap:0;
+  margin-bottom:0;
+}
+.center-tab{
+  padding:6px 20px;font-size:12px;color:var(--text-secondary);
+  border:1px solid transparent;cursor:pointer;
+  background:rgba(0,180,255,0.04);
+  transition:all .3s;
+}
+.center-tab:first-child{border-radius:4px 0 0 4px;}
+.center-tab:last-child{border-radius:0 4px 4px 0;}
+.center-tab.active{
+  color:var(--accent);border-color:var(--accent);
+  background:rgba(0,180,255,0.12);
+  box-shadow:0 0 10px rgba(0,200,255,0.2);
+}
+
+/* ===== Alert List ===== */
+.alert-list{max-height:210px;overflow-y:auto;}
+.alert-list::-webkit-scrollbar{width:3px;}
+.alert-list::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:3px;}
+.alert-item{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;border-radius:4px;margin-bottom:4px;
+  background:rgba(255,80,80,0.06);
+  border-left:3px solid var(--accent3);
+  font-size:12px;transition:all .3s;
+  animation:slideIn 0.5s ease;
+}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+.alert-item.warn{border-left-color:var(--accent4);background:rgba(255,170,0,0.06);}
+.alert-item.info{border-left-color:var(--accent);background:rgba(0,200,255,0.04);}
+.alert-item .alert-icon{font-size:14px;flex-shrink:0;}
+.alert-item .alert-time{color:var(--text-secondary);font-size:10px;white-space:nowrap;}
+
+/* ===== Chart Containers ===== */
+.chart-box{width:100%;height:100%;min-height:200px;}
+
+/* ===== Footer Marquee ===== */
+.marquee{
+  height:28px;overflow:hidden;flex-shrink:0;
+  display:flex;align-items:center;gap:8px;
+  margin-top:6px;font-size:11px;color:var(--text-secondary);
+}
+.marquee .tag{
+  background:rgba(0,200,255,0.15);color:var(--accent);
+  padding:2px 8px;border-radius:3px;font-size:10px;white-space:nowrap;
+}
+.marquee-scroll{
+  flex:1;overflow:hidden;position:relative;height:24px;
+}
+.marquee-scroll span{
+  position:absolute;white-space:nowrap;
+  animation:scroll 20s linear infinite;
+}
+@keyframes scroll{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+
+/* ===== Asset Health Row ===== */
+.health-row{display:flex;gap:8px;align-items:center;}
+.health-stat{flex:1;text-align:center;padding:6px 2px;border-radius:4px;background:rgba(0,180,255,0.04);}
+.health-stat .hs-val{font-size:18px;font-weight:700;font-family:'Consolas','Monaco',monospace;margin-bottom:2px;}
+.health-stat .hs-label{font-size:9px;color:var(--text-secondary);}
+.health-stat .hs-val.green{color:#00ff88;}
+.health-stat .hs-val.gray{color:#8899aa;}
+.health-stat .hs-val.red{color:#ff6b6b;}
+
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+
+<div id="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">V</div>
+      <div class="header-title">虚拟电厂数字平台</div>
+    </div>
+    <div class="header-center">
+      <div class="date" id="headerDate">--</div>
+      <div class="time" id="headerTime">--:--:--</div>
+      <span>|</span>
+      <span>🌤 晴 23°C</span>
+    </div>
+    <div class="header-right">
+      <a href="dispatch-detail.html" style="padding:4px 12px;background:linear-gradient(135deg,var(--accent4),var(--accent3));color:#fff;border-radius:4px;text-decoration:none;font-size:11px;font-weight:600;">🎛️ 实时调度</a>
+      <span>|</span>
+      <div class="dot"></div><span>系统运行中</span>
+      <span>|</span>
+      <span>👤 系统管理员</span>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <!-- Left Column -->
+    <div class="col-left">
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title"><span class="icon">📊</span>核心指标</div>
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="val" id="totalCapacity">2,850</div>
+            <div class="label">总装机容量 (MW)</div>
+          </div>
+          <div class="stat-card">
+            <div class="val green" id="onlineCount">142</div>
+            <div class="label">在线资源 (个)</div>
+          </div>
+        </div>
+        <div class="stat-row" style="margin-top:6px;">
+          <div class="stat-card">
+            <div class="val orange" id="todayGen">18,562</div>
+            <div class="label">今日发电 (MWh)</div>
+          </div>
+          <div class="stat-card">
+            <div class="val green" id="completionRate">96.8</div>
+            <div class="label">计划完成率 (%)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex:1;">
+        <div class="panel-title"><span class="icon">⚡</span>功率实时监测</div>
+        <div id="chartPower" class="chart-box"></div>
+      </div>
+
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title"><span class="icon">🔋</span>储能充放电状态</div>
+        <div id="chartStorage" class="chart-box" style="min-height:150px;"></div>
+      </div>
+    </div>
+
+    <!-- Center Column -->
+    <div class="col-center">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="center-tabs">
+          <div class="center-tab active" data-tab="map">📡 资源分布</div>
+          <div class="center-tab" data-tab="flow">🔗 能量流向</div>
+          <div class="center-tab" data-tab="trend">📈 负荷趋势</div>
+        </div>
+      </div>
+      <div class="panel" style="flex:1;position:relative;overflow:hidden;" id="centerPanel">
+        <div id="chartCenter" class="chart-box"></div>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-right">
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title"><span class="icon">🚨</span>实时告警 <span style="font-size:10px;color:var(--accent3);">(24h)</span></div>
+        <div class="alert-list" id="alertList">
+          <!-- dynamically filled -->
+        </div>
+      </div>
+
+      <div class="panel" style="flex:1;">
+        <div class="panel-title"><span class="icon">📋</span>调度指令执行率 <a href="dispatch-detail.html" style="margin-left:auto;font-size:10px;color:var(--accent);text-decoration:none;font-weight:normal;">进入调度 →</a></div>
+        <div id="chartDispatch" class="chart-box"></div>
+      </div>
+
+      <div class="panel" style="flex:1;">
+        <div class="panel-title"><span class="icon">🏗️</span>设备资产健康度</div>
+        <div class="health-row">
+          <div class="health-stat"><div class="hs-val green" id="assetOnline">196</div><div class="hs-label">在线运行</div></div>
+          <div class="health-stat"><div class="hs-val gray" id="assetOffline">38</div><div class="hs-label">离线待机</div></div>
+          <div class="health-stat"><div class="hs-val red" id="assetFault">12</div><div class="hs-label">故障告警</div></div>
+          <div class="health-stat"><div style="font-size:10px;color:var(--text-secondary);">健康度</div><div class="hs-val" style="color:#00d4ff;font-size:20px;" id="healthScore">91.2%</div></div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title"><span class="icon">💰</span>今日收益概览</div>
+        <div style="display:flex;gap:10px;">
+          <div class="stat-card" style="flex:1;">
+            <div class="val green" id="todayRevenue">¥126.8</div>
+            <div class="label">电力交易 (万元)</div>
+          </div>
+          <div class="stat-card" style="flex:1;">
+            <div class="val orange" id="todayAux">¥34.2</div>
+            <div class="label">辅助服务 (万元)</div>
+          </div>
+          <div class="stat-card" style="flex:1;">
+            <div class="val orange" id="todayDr">¥18.6</div>
+            <div class="label">需求响应 (万元)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Market Snapshot -->
+      <div class="panel" style="flex:0 0 auto;">
+        <div class="panel-title"><span class="icon">📈</span>市场行情快览</div>
+        <div style="display:flex;gap:8px;font-size:10px;color:var(--text-secondary);">
+          <div style="flex:1;text-align:center;padding:4px;background:rgba(0,180,255,0.04);border-radius:4px;"><div>日前均价</div><div style="color:var(--accent);font-weight:700;font-size:14px;">385.6</div><div>元/MWh</div></div>
+          <div style="flex:1;text-align:center;padding:4px;background:rgba(0,180,255,0.04);border-radius:4px;"><div>实时均价</div><div style="color:var(--accent4);font-weight:700;font-size:14px;">412.3</div><div>元/MWh ↑6.9%</div></div>
+          <div style="flex:1;text-align:center;padding:4px;background:rgba(0,180,255,0.04);border-radius:4px;"><div>辅助服务</div><div style="color:var(--accent2);font-weight:700;font-size:14px;">28.5</div><div>元/MWh</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VPP 收益构成 -->
+  <div class="panel" style="flex-shrink:0;margin-top:6px;">
+    <div class="panel-title"><span class="icon">💹</span>VPP 收益构成 <span style="font-size:10px;color:var(--text-secondary);font-weight:normal;">6月累计</span></div>
+    <div style="display:flex;gap:12px;">
+      <div style="flex:1;text-align:center;padding:6px;background:rgba(0,212,255,0.06);border-radius:6px;border:1px solid rgba(0,212,255,0.2);">
+        <div style="font-size:9px;color:var(--text-secondary);">电力交易</div>
+        <div style="font-size:22px;font-weight:700;color:var(--accent);">45%</div>
+        <div style="font-size:11px;color:var(--text-secondary);">¥578.9万</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:6px;background:rgba(0,255,136,0.06);border-radius:6px;border:1px solid rgba(0,255,136,0.2);">
+        <div style="font-size:9px;color:var(--text-secondary);">辅助服务</div>
+        <div style="font-size:22px;font-weight:700;color:var(--accent2);">28%</div>
+        <div style="font-size:11px;color:var(--text-secondary);">¥360.4万</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:6px;background:rgba(255,170,0,0.06);border-radius:6px;border:1px solid rgba(255,170,0,0.2);">
+        <div style="font-size:9px;color:var(--text-secondary);">需求响应</div>
+        <div style="font-size:22px;font-weight:700;color:var(--accent4);">18%</div>
+        <div style="font-size:11px;color:var(--text-secondary);">¥231.6万</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:6px;background:rgba(180,130,255,0.06);border-radius:6px;border:1px solid rgba(180,130,255,0.2);">
+        <div style="font-size:9px;color:var(--text-secondary);">容量补偿</div>
+        <div style="font-size:22px;font-weight:700;color:#b482ff;">9%</div>
+        <div style="font-size:11px;color:var(--text-secondary);">¥115.8万</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Marquee -->
+  <div class="marquee">
+    <span class="tag">实时消息</span>
+    <div class="marquee-scroll">
+      <span id="marqueeText">[2026-06-02 14:32:10] 光伏电站 #PS-028 发电功率超计划105%，自动上调调度目标至 48.5MW | [14:30:05] 储能站 #ES-012 充放电切换完成，当前SOC 78% | [14:28:33] 系统检测到风电场 #WF-003 出力波动±8%，已触发±10%联动预判 | [14:25:00] 今日累计交易电量 18,562 MWh，完成计划 96.8%</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== Particle Background ==========
+const canvas=document.getElementById('bgCanvas');
+const ctx=canvas.getContext('2d');
+let particles=[];
+function resizeCanvas(){
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize',resizeCanvas);
+
+class Particle{
+  constructor(){this.reset();}
+  reset(){
+    this.x=Math.random()*canvas.width;
+    this.y=Math.random()*canvas.height;
+    this.r=Math.random()*1.5+0.5;
+    this.vx=(Math.random()-0.5)*0.4;
+    this.vy=(Math.random()-0.5)*0.4;
+    this.alpha=Math.random()*0.5+0.2;
+  }
+  update(){
+    this.x+=this.vx;this.y+=this.vy;
+    if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height)this.reset();
+  }
+  draw(){
+    ctx.beginPath();
+    ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(0,200,255,${this.alpha})`;
+    ctx.fill();
+  }
+}
+for(let i=0;i<80;i++)particles.push(new Particle());
+
+// Draw grid lines
+function drawGrid(){
+  ctx.strokeStyle='rgba(0,180,255,0.04)';
+  ctx.lineWidth=0.5;
+  const gap=60;
+  for(let x=gap;x<canvas.width;x+=gap){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=gap;y<canvas.height;y+=gap){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+}
+
+function animateBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawGrid();
+  particles.forEach(p=>{p.update();p.draw();});
+  // Draw connections
+  for(let i=0;i<particles.length;i++){
+    for(let j=i+1;j<particles.length;j++){
+      const dx=particles[i].x-particles[j].x;
+      const dy=particles[i].y-particles[j].y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<100){
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x,particles[i].y);
+        ctx.lineTo(particles[j].x,particles[j].y);
+        ctx.strokeStyle=`rgba(0,200,255,${0.06*(1-dist/100)})`;
+        ctx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// ========== Clock ==========
+function updateClock(){
+  const now=new Date();
+  document.getElementById('headerTime').textContent=now.toLocaleTimeString('zh-CN',{hour12:false});
+  document.getElementById('headerDate').textContent=now.toLocaleDateString('zh-CN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+updateClock();setInterval(updateClock,1000);
+
+// ========== Power Monitoring Chart (Left) ==========
+const chartPower=echarts.init(document.getElementById('chartPower'));
+const powerOption={
+  tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff',textStyle:{color:'#e0f0ff'}},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10}},
+  grid:{left:40,right:15,top:10,bottom:28},
+  xAxis:{type:'category',data:['00:00','02:00','04:00','06:00','08:00','10:00','12:00','14:00','16:00','18:00','20:00','22:00'],axisLine:{lineStyle:{color:'rgba(0,180,255,0.3)'}},axisLabel:{color:'#7eb8da',fontSize:10}},
+  yAxis:{type:'value',name:'MW',splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da',fontSize:10}},
+  series:[
+    {name:'光伏',type:'line',smooth:true,data:[0,0,0,2,48,156,320,445,380,210,45,0],lineStyle:{color:'#ffaa00',width:2},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(255,170,0,0.3)'},{offset:1,color:'rgba(255,170,0,0.02)'}]}},symbol:'none'},
+    {name:'风电',type:'line',smooth:true,data:[180,195,210,230,245,220,190,175,200,240,260,250],lineStyle:{color:'#00d4ff',width:2},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,212,255,0.3)'},{offset:1,color:'rgba(0,212,255,0.02)'}]}},symbol:'none'},
+    {name:'储能',type:'line',smooth:true,data:[20,15,10,5,0,-30,-50,-60,-40,-10,15,20],lineStyle:{color:'#00ff88',width:2,type:'dashed'},symbol:'none'},
+  ]
+};
+chartPower.setOption(powerOption);
+
+// ========== Storage Chart (Left) ==========
+const chartStorage=echarts.init(document.getElementById('chartStorage'));
+const storageOption={
+  tooltip:{trigger:'axis'},
+  grid:{left:40,right:15,top:5,bottom:20},
+  xAxis:{type:'category',data:['#ES-012','#ES-015','#ES-018','#ES-021'],axisLabel:{color:'#7eb8da',fontSize:10}},
+  yAxis:{type:'value',name:'%',max:100,splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da',fontSize:10}},
+  series:[
+    {type:'bar',data:[78,62,91,45],barWidth:20,itemStyle:{borderRadius:[4,4,0,0],color:params=>params.value>80?'#00ff88':params.value>50?'#ffaa00':'#ff6b6b'},label:{show:true,position:'top',color:'#7eb8da',fontSize:10,formatter:'{c}%'}}
+  ]
+};
+chartStorage.setOption(storageOption);
+
+// ========== Center Chart ==========
+const chartCenter=echarts.init(document.getElementById('chartCenter'));
+const mapOption={
+  tooltip:{trigger:'item',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+  backgroundColor:'transparent',
+  series:[{
+    type:'effectScatter',
+    coordinateSystem:'geo',
+    data:[
+      {name:'光伏电站A',value:[121.47,31.23,520]},
+      {name:'风电场B',value:[114.07,22.62,380]},
+      {name:'储能站C',value:[120.15,30.28,150]},
+      {name:'光伏电站D',value:[113.26,23.13,440]},
+      {name:'风电场E',value:[117.20,39.13,290]},
+      {name:'储能站F',value:[118.78,32.06,120]},
+      {name:'光伏电站G',value:[106.72,26.57,350]},
+      {name:'风电场H',value:[108.95,34.27,260]},
+      {name:'储能站I',value:[121.44,25.03,95]},
+      {name:'光伏电站J',value:[104.06,30.67,410]},
+    ],
+    symbolSize:val=>Math.sqrt(val[2])*1.2,
+    rippleEffect:{brushType:'stroke',scale:3},
+    itemStyle:{color:'#00d4ff',shadowBlur:20,shadowColor:'rgba(0,200,255,0.8)'},
+    label:{show:true,formatter:'{b}',position:'right',color:'#7eb8da',fontSize:10},
+    encode:{value:2}
+  },{
+    type:'scatter',
+    coordinateSystem:'geo',
+    data:[
+      {name:'调度中心',value:[116.40,39.90,1000]},
+    ],
+    symbolSize:28,
+    itemStyle:{color:'#ffaa00',shadowBlur:30,shadowColor:'rgba(255,170,0,0.9)'},
+    label:{show:true,formatter:'{b}',position:'bottom',color:'#ffaa00',fontSize:11,fontWeight:'bold'},
+    encode:{value:2}
+  }],
+  geo:{
+    map:'china',
+    roam:false,
+    zoom:1.15,
+    center:[108,34],
+    itemStyle:{areaColor:'rgba(0,180,255,0.05)',borderColor:'rgba(0,200,255,0.3)',borderWidth:1},
+    emphasis:{itemStyle:{areaColor:'rgba(0,200,255,0.12)'},label:{color:'#e0f0ff'}},
+    label:{show:false}
+  }
+};
+
+const flowOption={
+  tooltip:{trigger:'item'},
+  backgroundColor:'transparent',
+  series:[{
+    type:'graph',
+    layout:'force',
+    roam:true,
+    draggable:true,
+    force:{repulsion:300,edgeLength:[80,200]},
+    data:[
+      {name:'调度中心',symbolSize:50,itemStyle:{color:'#ffaa00',shadowBlur:20,shadowColor:'rgba(255,170,0,0.8)'}},
+      {name:'光伏电站A',symbolSize:35,itemStyle:{color:'#00d4ff',shadowBlur:15,shadowColor:'rgba(0,212,255,0.6)'}},
+      {name:'风电场B',symbolSize:32,itemStyle:{color:'#00ff88',shadowBlur:15,shadowColor:'rgba(0,255,136,0.6)'}},
+      {name:'储能站C',symbolSize:28,itemStyle:{color:'#ff6b6b',shadowBlur:10}},
+      {name:'光伏电站D',symbolSize:30,itemStyle:{color:'#00d4ff',shadowBlur:15}},
+      {name:'风电场E',symbolSize:33,itemStyle:{color:'#00ff88',shadowBlur:15}},
+      {name:'储能站F',symbolSize:26,itemStyle:{color:'#ff6b6b',shadowBlur:10}},
+      {name:'园区微网G',symbolSize:24,itemStyle:{color:'#7eb8da'}},
+      {name:'负荷中心H',symbolSize:24,itemStyle:{color:'#7eb8da'}},
+    ],
+    links:[
+      {source:'调度中心',target:'光伏电站A',lineStyle:{color:'rgba(0,212,255,0.5)',curveness:0.2}},
+      {source:'调度中心',target:'风电场B',lineStyle:{color:'rgba(0,255,136,0.5)',curveness:0.2}},
+      {source:'调度中心',target:'储能站C',lineStyle:{color:'rgba(255,107,107,0.5)',curveness:0.2}},
+      {source:'调度中心',target:'光伏电站D',lineStyle:{color:'rgba(0,212,255,0.5)',curveness:0.2}},
+      {source:'调度中心',target:'风电场E',lineStyle:{color:'rgba(0,255,136,0.5)',curveness:0.2}},
+      {source:'调度中心',target:'储能站F',lineStyle:{color:'rgba(255,107,107,0.5)',curveness:0.2}},
+      {source:'光伏电站A',target:'园区微网G',lineStyle:{color:'rgba(126,184,218,0.3)'}},
+      {source:'风电场B',target:'负荷中心H',lineStyle:{color:'rgba(126,184,218,0.3)'}},
+      {source:'光伏电站D',target:'园区微网G',lineStyle:{color:'rgba(126,184,218,0.3)'}},
+      {source:'风电场E',target:'负荷中心H',lineStyle:{color:'rgba(126,184,218,0.3)'}},
+    ],
+    label:{show:true,color:'#7eb8da',fontSize:9},
+    emphasis:{focus:'adjacency',lineStyle:{width:3}},
+    categories:[
+      {name:'调度中心'},
+      {name:'光伏'},
+      {name:'风电'},
+      {name:'储能'},
+      {name:'负荷'},
+    ]
+  }]
+};
+
+const trendOption={
+  tooltip:{trigger:'axis',backgroundColor:'rgba(6,30,60,0.95)',borderColor:'#00d4ff'},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10}},
+  grid:{left:45,right:20,top:15,bottom:30},
+  xAxis:{type:'category',data:Array.from({length:24},(_,i)=>`${i}:00`),axisLabel:{color:'#7eb8da',fontSize:10}},
+  yAxis:{type:'value',name:'MW',splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da',fontSize:10}},
+  series:[
+    {name:'总发电',type:'line',smooth:true,data:[420,380,350,340,360,420,560,720,880,960,1000,1020,980,950,960,920,880,800,720,650,580,520,480,450],lineStyle:{color:'#00d4ff',width:2.5,shadowBlur:8,shadowColor:'rgba(0,212,255,0.5)'},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,212,255,0.25)'},{offset:1,color:'rgba(0,212,255,0.01)'}]}}},
+    {name:'总负荷',type:'line',smooth:true,data:[380,340,310,290,300,380,520,680,860,940,980,1000,960,920,940,900,850,780,700,630,560,500,460,430],lineStyle:{color:'#ffaa00',width:2,type:'dashed'}},
+    {name:'储能净出力',type:'bar',data:[40,40,40,50,60,40,40,40,20,20,20,20,20,30,20,20,30,20,20,20,20,20,20,20],barWidth:6,itemStyle:{color:params=>params.value>0?'#00ff88':'#ff6b6b'}},
+  ]
+};
+
+chartCenter.setOption(mapOption);
+
+// Load China map
+fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+  .then(r=>r.json())
+  .then(geoJson=>{
+    echarts.registerMap('china',geoJson);
+    chartCenter.setOption(mapOption);
+  })
+  .catch(()=>{
+    // Fallback: use simplified base
+    chartCenter.setOption({
+      ...mapOption,
+      geo:{...mapOption.geo,map:'',silent:true,itemStyle:{areaColor:'rgba(0,180,255,0.03)',borderColor:'rgba(0,200,255,0.2)'}}
+    });
+  });
+
+// Tab switching
+document.querySelectorAll('.center-tab').forEach(tab=>{
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.center-tab').forEach(t=>t.classList.remove('active'));
+    this.classList.add('active');
+    const type=this.dataset.tab;
+    if(type==='map')chartCenter.setOption(mapOption,true);
+    else if(type==='flow')chartCenter.setOption(flowOption,true);
+    else chartCenter.setOption(trendOption,true);
+  });
+});
+
+// ========== Dispatch Chart (Right) ==========
+const chartDispatch=echarts.init(document.getElementById('chartDispatch'));
+const dispatchOption={
+  tooltip:{trigger:'axis'},
+  legend:{bottom:0,textStyle:{color:'#7eb8da',fontSize:10}},
+  grid:{left:40,right:15,top:10,bottom:28},
+  xAxis:{type:'category',data:['06/01','06/02','06/03','06/04','06/05','06/06','06/07'],axisLabel:{color:'#7eb8da',fontSize:10}},
+  yAxis:{type:'value',name:'%',max:110,splitLine:{lineStyle:{color:'rgba(0,180,255,0.08)'}},axisLabel:{color:'#7eb8da',fontSize:10}},
+  series:[{
+    type:'line',data:[94,96,92,98,95,97,96.8],
+    smooth:true,lineStyle:{color:'#00ff88',width:2,shadowBlur:6,shadowColor:'rgba(0,255,136,0.4)'},
+    areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,255,136,0.2)'},{offset:1,color:'rgba(0,255,136,0.01)'}]}},
+    markLine:{silent:true,data:[{yAxis:95,label:{formatter:'目标线 95%',color:'#ffaa00',fontSize:10},lineStyle:{color:'#ffaa00',type:'dashed',width:1}}]}
+  }]
+};
+chartDispatch.setOption(dispatchOption);
+
+// ========== Alert List ==========
+const alerts=[
+  {time:'14:32:10',level:'critical',icon:'🔴',text:'光伏电站 #PS-028 输出功率异常下降至 28MW (目标 48.5MW)'},
+  {time:'14:28:05',level:'warn',icon:'🟡',text:'风电场 #WF-003 出力波动±8%，接近±10%联动阈值'},
+  {time:'14:15:33',level:'critical',icon:'🔴',text:'储能站 #ES-012 SOC低于30%，需立即调整充放电策略'},
+  {time:'14:02:18',level:'info',icon:'🔵',text:'逆变器 #INV-047 效率降至91%，低于95%告警线'},
+  {time:'13:45:50',level:'critical',icon:'🔴',text:'调度指令 #D20260602-0035 超时未确认，目标 35MW'},
+];
+const alertList=document.getElementById('alertList');
+alerts.forEach(a=>{
+  const div=document.createElement('div');
+  div.className=`alert-item ${a.level==='warn'?'warn':''}`;
+  div.innerHTML=`<span class="alert-icon">${a.icon}</span><span style="flex:1">${a.text}</span><span class="alert-time">${a.time}</span>`;
+  alertList.appendChild(div);
+});
+
+// Simulate real-time updates
+setInterval(()=>{
+  document.getElementById('totalCapacity').textContent=(2800+Math.floor(Math.random()*100)).toLocaleString();
+  document.getElementById('onlineCount').textContent=(138+Math.floor(Math.random()*10));
+  document.getElementById('todayGen').textContent=(18200+Math.floor(Math.random()*1000)).toLocaleString();
+  document.getElementById('todayRevenue').textContent='¥'+(120+Math.random()*15).toFixed(1);
+  document.getElementById('completionRate').textContent=(95+Math.random()*3).toFixed(1);
+  document.getElementById('todayAux').textContent='¥'+(32+Math.random()*6).toFixed(1);
+  document.getElementById('todayDr').textContent='¥'+(16+Math.random()*5).toFixed(1);
+  // Asset health
+  const online=194+Math.floor(Math.random()*6);
+  const fault=10+Math.floor(Math.random()*5);
+  const offline=246-online-fault;
+  document.getElementById('assetOnline').textContent=online;
+  document.getElementById('assetOffline').textContent=offline;
+  document.getElementById('assetFault').textContent=fault;
+  document.getElementById('healthScore').textContent=(online/246*100).toFixed(1)+'%';
+},3000);
+
+// ========== Responsive Resize ==========
+window.addEventListener('resize',()=>{
+  chartPower.resize();
+  chartStorage.resize();
+  chartCenter.resize();
+  chartDispatch.resize();
+});
+</script>
+</body>
+</html>
